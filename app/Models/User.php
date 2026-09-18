@@ -22,6 +22,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $email
  * @property Carbon|null $email_verified_at
  * @property string $password
+ * @property-read array $all_permissions
+ * @property-read Collection<int, Role> $roles
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
@@ -39,13 +41,9 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
+    // Hapus HasRoles dari sini
     use HasFactory, HasTeams, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -53,5 +51,32 @@ class User extends Authenticatable implements PasskeyUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class);
+    }
+
+    public function getAllPermissionsAttribute(): array
+    {
+        return $this->roles->flatMap(function ($role) {
+            return $role->permissions ?? [];
+        })->unique()->values()->toArray();
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        return in_array($permission, $this->all_permissions);
+    }
+
+    public function dosenProfile()
+    {
+        return $this->hasOne(DosenProfile::class);
+    }
+
+    public function mahasiswaProfile()
+    {
+        return $this->hasOne(MahasiswaProfile::class);
     }
 }

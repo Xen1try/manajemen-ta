@@ -18,6 +18,11 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'Profil Akademik',
+        href: '/settings/profil-akademik', // Menu baru ditambahkan di sini
+        icon: null,
+    },
+    {
         title: 'Security',
         href: editSecurity(),
         icon: null,

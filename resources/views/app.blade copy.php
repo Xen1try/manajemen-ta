@@ -1,14 +1,8 @@
 <!DOCTYPE html>
-<html lang="id" @class(['bg-background', 'dark' => ($appearance ?? 'system') == 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        
-        {{-- Meta tags disesuaikan dengan layout.tsx --}}
-        <meta name="description" content="Sistem manajemen tugas akhir Politeknik Manufaktur Bandung.">
-        <meta name="generator" content="v0.app">
-        <meta name="color-scheme" content="light">
-        <meta name="theme-color" content="#f6f8fb">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
@@ -36,22 +30,19 @@
             }
         </style>
 
-        {{-- Icons disesuaikan dengan layout.tsx --}}
-        <link rel="icon" href="/icon-light-32x32.png" media="(prefers-color-scheme: light)">
-        <link rel="icon" href="/icon-dark-32x32.png" media="(prefers-color-scheme: dark)">
-        <link rel="icon" href="/icon.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="/apple-icon.png">
+        <link rel="icon" href="/favicon.ico" sizes="any">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         @fonts
 
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         <x-inertia::head>
-            {{-- Title disesuaikan dengan layout.tsx --}}
-            <title inertia>TA Management · Polman Bandung</title>
+            <title>{{ config('app.name', 'Laravel') }}</title>
         </x-inertia::head>
     </head>
-    <body class="antialiased">
+    <body class="font-sans antialiased">
         <x-inertia::app />
     </body>
 </html>

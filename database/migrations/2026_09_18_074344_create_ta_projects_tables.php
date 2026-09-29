@@ -18,11 +18,11 @@ return new class extends Migration
             $table->text('deskripsi')->nullable();
             
             $table->json('required_skills')->nullable(); 
+            $table->integer('kuota')->default(1); // Kolom baru untuk batas maksimal mahasiswa
             
             $table->foreignId('pengusul_id')->constrained('users'); 
-            $table->foreignId('mahasiswa_id')->nullable()->constrained('users'); 
+            // mahasiswa_id DIHAPUS, dipindah ke tabel pivot
             
-            // UBAH: 'Bursa' diganti menjadi 'Matchmaking'
             $table->enum('status', [
                 'Pending Kaprodi',
                 'Matchmaking', 
@@ -34,7 +34,17 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 2. Tabel Pivot Pembimbing
+        // 2. Tabel Pivot Mahasiswa Tim (Mendukung >1 Mahasiswa per Judul)
+        Schema::create('project_mahasiswas', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('ta_project_id')->constrained('ta_projects')->cascadeOnDelete();
+            $table->foreignId('mahasiswa_id')->constrained('users')->cascadeOnDelete();
+            $table->timestamps();
+            
+            $table->unique(['ta_project_id', 'mahasiswa_id']); 
+        });
+
+        // 3. Tabel Pivot Pembimbing
         Schema::create('project_pembimbings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('ta_project_id')->constrained('ta_projects')->cascadeOnDelete();
@@ -42,14 +52,12 @@ return new class extends Migration
             
             $table->enum('role', ['Utama', 'Pendamping'])->default('Pendamping');
             $table->integer('urutan')->default(1); 
-            
             $table->timestamps();
             
             $table->unique(['ta_project_id', 'dosen_id']); 
         });
 
-        // 3. Tabel Pemilihan Judul Mahasiswa (Tema Selection)
-        // UBAH: Nama tabel diubah menjadi tema_selections
+        // 4. Tabel Pemilihan Judul Mahasiswa (Tema Selection)
         Schema::create('tema_selections', function (Blueprint $table) {
             $table->id();
             $table->foreignId('academic_year_id')->constrained('academic_years')->cascadeOnDelete();
@@ -69,8 +77,9 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('tema_selections'); // Sesuaikan nama saat drop
+        Schema::dropIfExists('tema_selections');
         Schema::dropIfExists('project_pembimbings');
+        Schema::dropIfExists('project_mahasiswas');
         Schema::dropIfExists('ta_projects');
     }
 };

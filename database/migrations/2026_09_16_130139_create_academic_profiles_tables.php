@@ -22,11 +22,11 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Tabel Baru: Jabatan Fungsional
         Schema::create('jabatan_fungsionals', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // Asisten Ahli, Lektor, dsb.
-            $table->integer('weight_score')->default(1); // Bobot untuk algoritma
+            $table->string('name');
+            $table->integer('weight_score')->default(1);
+            $table->integer('max_kuota_bimbingan')->default(5); // DI PINDAH KE SINI
             $table->timestamps();
         });
 
@@ -35,13 +35,11 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('nip')->nullable();
             $table->foreignId('prodi_id')->nullable()->constrained()->nullOnDelete();
-            
-            // Menggunakan Foreign Key untuk Jabatan
             $table->foreignId('jabatan_fungsional_id')->nullable()->constrained('jabatan_fungsionals')->nullOnDelete();
-            $table->integer('weight_score')->default(1); // Disimpan sebagai cache algoritma
             
+            $table->integer('weight_score')->default(1); 
             $table->json('skill_vector')->nullable(); 
-            $table->integer('max_kuota_bimbingan')->default(5);
+            // max_kuota_bimbingan DIHAPUS DARI SINI
             $table->timestamps();
         });
 

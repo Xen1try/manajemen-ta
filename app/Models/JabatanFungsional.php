@@ -8,6 +8,7 @@ class JabatanFungsional extends Model
 {
     protected $fillable = [
         'name', 
-        'weight_score'
+        'weight_score',
+        'max_kuota_bimbingan'
     ];
 }

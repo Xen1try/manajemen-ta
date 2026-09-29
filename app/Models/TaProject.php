@@ -12,8 +12,8 @@ class TaProject extends Model
         'judul', 
         'deskripsi', 
         'required_skills', 
+        'kuota', 
         'pengusul_id', 
-        'mahasiswa_id', 
         'status'
     ];
 
@@ -21,8 +21,16 @@ class TaProject extends Model
         return ['required_skills' => 'array'];
     }
 
-    public function pengusul() { return $this->belongsTo(User::class, 'pengusul_id'); }
-    public function mahasiswa() { return $this->belongsTo(User::class, 'mahasiswa_id'); }
-    public function pembimbings() { return $this->hasMany(ProjectPembimbing::class)->orderBy('urutan'); }
-    public function academicYear() { return $this->belongsTo(AcademicYear::class); }
+    public function pengusul() {
+        return $this->belongsTo(User::class, 'pengusul_id');
+    }
+
+    // RELASI BARU: Mendukung banyak mahasiswa per project
+    public function mahasiswas() {
+        return $this->belongsToMany(User::class, 'project_mahasiswas', 'ta_project_id', 'mahasiswa_id');
+    }
+
+    public function pembimbings() {
+        return $this->hasMany(ProjectPembimbing::class);
+    }
 }

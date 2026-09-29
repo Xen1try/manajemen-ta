@@ -14,13 +14,16 @@ class AcademicProfileController extends Controller
     public function edit(Request $request)
     {
         $user = clone $request->user();
-        $user->load(['dosenProfile', 'mahasiswaProfile', 'roles']);
+        $user->load(['dosenProfile', 'mahasiswaProfile']);
+        
+        // Tarik role beserta injeksi bypass jika dia Admin
+        $flags = $this->getUserRoleFlags($user);
         
         return Inertia::render('academic-profile', [
             'prodis' => Prodi::all(),
             'competencies' => Competency::all(),
-            'jabatans' => JabatanFungsional::all(), // Kirim data jabatan ke React
-            'userRoles' => $user->roles->pluck('name')->toArray(),
+            'jabatans' => JabatanFungsional::all(), 
+            'userRoles' => $flags->activeRoleNames, 
             'dosenProfile' => $user->dosenProfile ?? new DosenProfile(),
             'mahasiswaProfile' => $user->mahasiswaProfile ?? new MahasiswaProfile(),
         ]);
@@ -32,16 +35,15 @@ class AcademicProfileController extends Controller
             'nip' => 'nullable|string',
             'prodi_id' => 'required|exists:prodis,id',
             'jabatan_fungsional_id' => 'nullable|exists:jabatan_fungsionals,id',
-            'skill_vector' => 'nullable|array',
-            'max_kuota_bimbingan' => 'required|integer',
+            'skill_vector' => 'nullable|array', 
         ]);
 
-        // Ambil weight score dinamis dari tabel jabatan
         $jabatan = JabatanFungsional::find($validated['jabatan_fungsional_id']);
         $validated['weight_score'] = $jabatan ? $jabatan->weight_score : 1;
 
         DosenProfile::updateOrCreate(['user_id' => $request->user()->id], $validated);
-        return redirect()->back();
+        
+        return redirect()->back()->with('success', 'Profil akademik Dosen berhasil diperbarui.');
     }
 
     public function updateMahasiswa(Request $request)
@@ -50,11 +52,12 @@ class AcademicProfileController extends Controller
             'nim' => 'required|string',
             'prodi_id' => 'required|exists:prodis,id',
             'angkatan' => 'required|integer',
-            'skill_vector' => 'nullable|array',
+            'skill_vector' => 'nullable|array', 
             'academic_status' => 'required|string',
         ]);
 
         MahasiswaProfile::updateOrCreate(['user_id' => $request->user()->id], $validated);
-        return redirect()->back();
+        
+        return redirect()->back()->with('success', 'Portofolio skill Mahasiswa berhasil diperbarui.');
     }
 }

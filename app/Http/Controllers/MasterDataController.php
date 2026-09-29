@@ -31,7 +31,11 @@ class MasterDataController extends Controller
     public function destroyCompetency($currentTeam, Competency $competency) { $competency->delete(); return redirect()->back(); }
 
     public function storeJabatan(Request $request) {
-        JabatanFungsional::create($request->validate(['name' => 'required|string', 'weight_score' => 'required|integer|min:1']));
+        JabatanFungsional::create($request->validate([
+            'name' => 'required|string', 
+            'weight_score' => 'required|integer|min:1',
+            'max_kuota_bimbingan' => 'required|integer|min:1' // Validasi tambahan
+        ]));
         return redirect()->back();
     }
     public function destroyJabatan($currentTeam, JabatanFungsional $jabatan) { $jabatan->delete(); return redirect()->back(); }

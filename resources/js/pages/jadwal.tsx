@@ -2,9 +2,9 @@ import { Head, router, usePage, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { 
     Calendar as CalendarIcon, MapPin, Settings2, CheckCircle2, 
-    AlertTriangle, Play, CalendarX, Edit, Trash2, ChevronLeft, ChevronRight, Info
+    AlertTriangle, Play, CalendarCheck, Edit, ChevronLeft, ChevronRight, Check
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -12,54 +12,94 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Jadwal & Sidang', href: '/jadwal' },
 ];
 
-export default function Jadwal({ schedules = [], dosens = [], myBlocks = [], isDosen = false }: any) {
+export default function Jadwal({ schedules = [], dosens = [], myAvailabilities = [], activeMilestoneStr, isDosen = false, roleFlags }: any) {
     const { currentTeam, auth } = usePage().props as any;
-    const canManage = auth?.permissions?.includes('sidang.create') || false;
+    const canManage = auth?.permissions?.includes('sidang.create') || roleFlags?.isAdmin || false;
     const [activeTab, setActiveTab] = useState('draft');
     
-    // States untuk Modal Panitia
+    const [activeMilestone, setActiveMilestone] = useState(activeMilestoneStr || 'Sempro');
+    
     const [overrideData, setOverrideData] = useState<any>(null);
     const [editingSchedule, setEditingSchedule] = useState<any>(null);
 
-    // States untuk Kalender Dosen
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
+    const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
-    const filteredSchedules = Array.isArray(schedules) ? schedules.filter((s: any) => s?.status === activeTab) : [];
+    const filteredSchedules = Array.isArray(schedules) 
+        ? schedules.filter((s: any) => s?.status === activeTab && s?.milestone_type === activeMilestone) 
+        : [];
+    
+    // --- LIVE CONFLICT DETECTOR (Pendeteksi Bentrok) ---
+    // Memindai jadwal yang beririsan waktu pada tanggal yang sama untuk mencari dosen yang dipanggil ganda.
+    const conflicts = useMemo(() => {
+        const conflictSet = new Set<string>();
+        const activeSchedules = (Array.isArray(schedules) ? schedules : []).filter((s:any) => s.date && s.time_start && s.time_end);
+        
+        for (let i = 0; i < activeSchedules.length; i++) {
+            for (let j = i + 1; j < activeSchedules.length; j++) {
+                const s1 = activeSchedules[i];
+                const s2 = activeSchedules[j];
+                
+                if (s1.date === s2.date) {
+                    // Cek irisan waktu (Overlap)
+                    if (s1.time_start < s2.time_end && s2.time_start < s1.time_end) {
+                        const uids1 = s1.assignees?.map((a:any) => a.user_id) || [];
+                        const uids2 = s2.assignees?.map((a:any) => a.user_id) || [];
+                        
+                        // Dosen yang ada di kedua jadwal pada waktu yang beririsan
+                        const common = uids1.filter((id:any) => uids2.includes(id));
+                        common.forEach((uid:any) => {
+                            conflictSet.add(`${s1.id}-${uid}`);
+                            conflictSet.add(`${s2.id}-${uid}`);
+                        });
+                    }
+                }
+            }
+        }
+        return conflictSet;
+    }, [schedules]);
+    // ----------------------------------------------------
 
-    // Form Blok Waktu (Dosen) & Edit Waktu (Panitia)
-    const blockForm = useForm({ date: '', time_start: '', time_end: '', reason: '' });
+    const availableForm = useForm({ dates: [] as string[], year: 2026, month: 1 });
     const editForm = useForm({ date: '', time_start: '', time_end: '', room: '' });
 
-    // --- LOGIKA KALENDER ---
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Minggu
+    
+    const firstDay = new Date(year, month, 1).getDay(); 
+    const emptyDays = firstDay === 0 ? 6 : firstDay - 1; 
     
     const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-    const blanksArray = Array.from({ length: firstDayOfMonth }, (_, i) => i);
+    const blanksArray = Array.from({ length: emptyDays }, (_, i) => i);
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
     const formatDateStr = (d: number) => `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    
-    const handleDayClick = (day: number) => {
-        const dateStr = formatDateStr(day);
-        setSelectedDateStr(dateStr);
-        blockForm.setData('date', dateStr);
+
+    useEffect(() => {
+        if (activeTab === 'availabilities' && Array.isArray(myAvailabilities)) {
+            const currentMonthDates = myAvailabilities
+                .filter((a: any) => {
+                    const d = new Date(a.date);
+                    return d.getFullYear() === year && d.getMonth() === month;
+                })
+                .map((a: any) => a.date);
+            setSelectedDates(currentMonthDates);
+        }
+    }, [year, month, myAvailabilities, activeTab]);
+
+    const toggleDate = (dateStr: string) => {
+        setSelectedDates(prev => 
+            prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
+        );
     };
 
-    const getBlocksForDate = (dateStr: string) => {
-        return Array.isArray(myBlocks) ? myBlocks.filter((b: any) => b?.date === dateStr) : [];
-    };
-    // ----------------------
-
-    const submitBlock = (e: any) => {
-        e.preventDefault();
-        blockForm.post(`/${currentTeam?.slug}/jadwal/blocks`, { 
-            preserveScroll: true,
-            onSuccess: () => blockForm.reset('time_start', 'time_end', 'reason') 
-        });
+    const submitAvailability = () => {
+        router.post(`/${currentTeam?.slug}/jadwal/availabilities`, {
+            dates: selectedDates,
+            year: year,
+            month: month + 1
+        }, { preserveScroll: true });
     };
 
     const submitEditSchedule = (e: any) => {
@@ -94,18 +134,31 @@ export default function Jadwal({ schedules = [], dosens = [], myBlocks = [], isD
         return found?.user_id || '';
     };
 
+    const handleGenerate = () => {
+        if(confirm(`Sistem akan mengeksekusi algoritma Auto-Balancing (3 Sesi/Hari) untuk jadwal ${activeMilestone}. Lanjutkan?`)) {
+            router.post(`/${currentTeam?.slug}/jadwal/generate`, {
+                milestone_type: activeMilestone
+            });
+        }
+    };
+
+    // Daftar role dinamis untuk UI berdasarkan Milestone Type
+    const getRolesForUI = () => {
+        if (activeMilestone === 'Sidang') return ['penguji_utama', 'penguji_pendamping_1', 'penguji_pendamping_2', 'pembimbing_utama'];
+        return ['penguji_utama', 'penguji_pendamping', 'pembimbing_utama', 'pembimbing_pendamping'];
+    };
+
     return (
         <>
             <Head title="Mesin Penjadwalan" />
 
-            {/* Modal Soft Validation */}
             {overrideData && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl max-w-md w-full shadow-xl border border-amber-200">
                         <div className="flex gap-4 items-start">
                             <div className="p-3 bg-amber-100 text-amber-600 rounded-full shrink-0"><AlertTriangle size={24}/></div>
                             <div>
-                                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Peringatan Bentrok / Syarat</h3>
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-white">Peringatan Ketersediaan</h3>
                                 <p className="text-slate-600 dark:text-zinc-400 text-sm mt-2">{overrideData.message}</p>
                             </div>
                         </div>
@@ -117,7 +170,6 @@ export default function Jadwal({ schedules = [], dosens = [], myBlocks = [], isD
                 </div>
             )}
 
-            {/* Modal Edit Waktu & Ruang (Panitia) */}
             {editingSchedule && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl max-w-md w-full shadow-xl">
@@ -139,30 +191,46 @@ export default function Jadwal({ schedules = [], dosens = [], myBlocks = [], isD
             )}
 
             <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                     <div>
                         <p className="text-xs font-bold text-slate-500 tracking-wider mb-1 uppercase">Unified Engine</p>
                         <h1 className="text-3xl font-serif font-bold text-slate-900 dark:text-zinc-100">Mesin Penjadwalan</h1>
                     </div>
-                    {canManage && (
-                        <button onClick={() => router.post(`/${currentTeam?.slug}/jadwal/generate`)} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 shadow">
-                            <Play size={16} /> Generate Draft Otomatis
-                        </button>
+                    
+                    {['draft', 'published'].includes(activeTab) && (
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                            <select 
+                                value={activeMilestone} 
+                                onChange={(e) => setActiveMilestone(e.target.value)}
+                                className="w-full sm:w-48 bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 font-bold shadow-sm"
+                            >
+                                <option value="Sempro">Seminar Proposal</option>
+                                <option value="Semhas">Seminar Hasil</option>
+                                <option value="Sidang">Sidang Akhir</option>
+                            </select>
+
+                            {canManage && (
+                                <button onClick={handleGenerate} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow transition-colors">
+                                    <Play size={16} /> Generate Draft
+                                </button>
+                            )}
+                        </div>
                     )}
                 </div>
 
-                {/* Tabs */}
                 <div className="flex gap-1 border-b border-slate-200 dark:border-zinc-800 pb-1">
                     <button onClick={() => setActiveTab('draft')} className={`px-4 py-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'draft' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Settings2 size={16}/> Override Draft</button>
                     <button onClick={() => setActiveTab('published')} className={`px-4 py-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'published' ? 'border-b-2 border-emerald-600 text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}><CheckCircle2 size={16}/> Jadwal Resmi</button>
-                    {isDosen && <button onClick={() => setActiveTab('blocks')} className={`px-4 py-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'blocks' ? 'border-b-2 border-rose-600 text-rose-600' : 'text-slate-500 hover:text-slate-700'}`}><CalendarX size={16}/> Kalender Ketersediaan</button>}
+                    {isDosen && <button onClick={() => setActiveTab('availabilities')} className={`px-4 py-2 text-sm font-bold flex items-center gap-2 ${activeTab === 'availabilities' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><CalendarCheck size={16}/> Ketersediaan Waktu</button>}
                 </div>
 
-                {/* Konten Tab Jadwal (Draft / Published) */}
                 {['draft', 'published'].includes(activeTab) && (
                     <div className="space-y-4">
                         {filteredSchedules.length === 0 ? (
-                            <div className="p-8 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl">Belum ada jadwal di fase ini.</div>
+                            <div className="p-8 text-center text-slate-500 border border-dashed border-slate-300 rounded-xl">
+                                Belum ada jadwal {activeMilestone} di fase ini.
+                            </div>
                         ) : (
                             filteredSchedules.map((sched: any) => (
                                 <div key={sched?.id} className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-col md:flex-row gap-6 shadow-sm">
@@ -181,28 +249,40 @@ export default function Jadwal({ schedules = [], dosens = [], myBlocks = [], isD
                                         </div>
                                         <div className="grid grid-cols-2 gap-4 text-xs text-slate-600 font-medium bg-slate-50 p-3 rounded-lg border border-slate-100 dark:bg-zinc-950 dark:border-zinc-800">
                                             <div className="flex items-center gap-2"><CalendarIcon size={14} className="text-slate-400" /> 
-                                                {sched?.date ? `${sched.date} (${sched.time_start?.slice(0,5)} - ${sched.time_end?.slice(0,5)})` : <span className="text-rose-500 font-bold">Waktu Belum Di-set</span>}
+                                                {sched?.date ? (
+                                                    <span>{sched.date} {sched.time_start && `(${sched.time_start.slice(0,5)} - ${sched.time_end?.slice(0,5)})`}</span>
+                                                ) : <span className="text-rose-500 font-bold">Waktu Belum Di-set</span>}
                                             </div>
                                             <div className="flex items-center gap-2"><MapPin size={14} className="text-slate-400" /> {sched?.room || 'Belum Di-set'}</div>
                                         </div>
                                     </div>
+                                    
                                     <div className="w-full md:w-96 flex flex-col gap-2 border-t md:border-t-0 md:border-l border-slate-200 dark:border-zinc-800 pt-4 md:pt-0 md:pl-6">
-                                        {['penguji_utama', 'penguji_pendamping', 'pembimbing'].map(role => (
-                                            <div key={role} className="flex flex-col">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">{role.replace('_', ' ')}</label>
-                                                <select 
-                                                    value={getAssigneeId(sched?.assignees, role)} 
-                                                    onChange={(e) => handleAssigneeChange(sched.id, role, e.target.value)}
-                                                    disabled={sched?.status !== 'draft' || !canManage}
-                                                    className="w-full text-xs py-1.5 px-2 rounded bg-slate-50 border-slate-200 dark:bg-zinc-950 dark:border-zinc-700 disabled:opacity-60"
-                                                >
-                                                    <option value="">-- Kosong --</option>
-                                                    {Array.isArray(dosens) && dosens.map((d: any) => (
-                                                        <option key={d?.id} value={d?.id}>{d?.name} (W:{d?.dosen_profile?.weight_score || 1})</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ))}
+                                        {getRolesForUI().map(role => {
+                                            const currentUserId = getAssigneeId(sched?.assignees, role);
+                                            const isConflict = conflicts.has(`${sched.id}-${currentUserId}`);
+
+                                            return (
+                                                <div key={role} className="flex flex-col relative">
+                                                    <div className="flex justify-between items-center mb-0.5">
+                                                        <label className="text-[10px] font-bold text-slate-400 uppercase">{role.replace(/_/g, ' ')}</label>
+                                                        {isConflict && <span className="text-[9px] bg-amber-100 text-amber-700 px-1 rounded border border-amber-200 font-bold">⚠️ BENTROK JAM</span>}
+                                                    </div>
+                                                    
+                                                    <select 
+                                                        value={currentUserId} 
+                                                        onChange={(e) => handleAssigneeChange(sched.id, role, e.target.value)}
+                                                        disabled={sched?.status !== 'draft' || !canManage}
+                                                        className={`w-full text-xs py-1.5 px-2 rounded disabled:opacity-60 transition-colors ${isConflict ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-200 dark:bg-zinc-950 dark:border-zinc-700'}`}
+                                                    >
+                                                        <option value="">-- Kosong --</option>
+                                                        {Array.isArray(dosens) && dosens.map((d: any) => (
+                                                            <option key={d?.id} value={d?.id}>{d?.name} ({d?.dosen_profile?.prodi?.code || 'XX'}) (W:{d?.dosen_profile?.weight_score || 1})</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))
@@ -210,111 +290,58 @@ export default function Jadwal({ schedules = [], dosens = [], myBlocks = [], isD
                     </div>
                 )}
 
-                {/* Konten Tab Kalender Ketersediaan (Dosen) */}
-                {activeTab === 'blocks' && isDosen && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {activeTab === 'availabilities' && isDosen && (
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-8 shadow-sm max-w-4xl mx-auto">
                         
-                        {/* Area Kiri: Kalender */}
-                        <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5 shadow-sm">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                                    <CalendarIcon size={18} className="text-blue-600"/> Kalender Penugasan
-                                </h3>
-                                <div className="flex items-center gap-4">
-                                    <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={20}/></button>
-                                    <span className="font-bold text-slate-700 w-32 text-center">{monthNames[month]} {year}</span>
-                                    <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronRight size={20}/></button>
-                                </div>
-                            </div>
-                            
-                            {/* Header Hari */}
-                            <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                                {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(day => (
-                                    <div key={day} className="text-xs font-bold text-slate-400 uppercase">{day}</div>
-                                ))}
-                            </div>
-                            
-                            {/* Grid Tanggal */}
-                            <div className="grid grid-cols-7 gap-1">
-                                {blanksArray.map((_, i) => <div key={`blank-${i}`} className="p-2 border border-transparent"></div>)}
-                                
-                                {daysArray.map(day => {
-                                    const dateStr = formatDateStr(day);
-                                    const isSelected = dateStr === selectedDateStr;
-                                    const hasBlocks = getBlocksForDate(dateStr).length > 0;
-                                    const isToday = new Date().toISOString().split('T')[0] === dateStr;
-
-                                    return (
-                                        <button 
-                                            key={day} 
-                                            onClick={() => handleDayClick(day)}
-                                            className={`
-                                                relative h-14 rounded-lg border flex flex-col items-center justify-center text-sm font-semibold transition-all
-                                                ${isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-md' : 'bg-slate-50 dark:bg-zinc-950 border-slate-100 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:border-blue-300'}
-                                                ${isToday && !isSelected ? 'text-blue-600' : ''}
-                                            `}
-                                        >
-                                            {day}
-                                            {/* Indikator Titik jika ada Blok */}
-                                            {hasBlocks && (
-                                                <span className={`absolute bottom-2 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-rose-500'}`}></span>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="mt-6 flex items-start gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg text-xs">
-                                <Info size={16} className="shrink-0 mt-0.5" />
-                                <p>Sistem menganggap Anda selalu <strong>tersedia</strong>. Klik tanggal pada kalender untuk menandai (mem-blok) waktu dimana Anda <strong>TIDAK BISA</strong> menguji (misal: mengajar, cuti, dinas).</p>
-                            </div>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                            <h3 className="font-bold text-2xl text-slate-900 dark:text-white">Blok slot saya</h3>
                         </div>
 
-                        {/* Area Kanan: Form & List Blok (Untuk Tanggal Terpilih) */}
-                        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 flex flex-col shadow-sm">
-                            {!selectedDateStr ? (
-                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-400 text-center">
-                                    <CalendarX size={32} className="mb-2 opacity-50"/>
-                                    <p className="text-sm font-medium">Pilih tanggal di kalender untuk mengatur ketersediaan Anda.</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="p-5 border-b border-slate-100 dark:border-zinc-800">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TANGGAL TERPILIH</p>
-                                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">{selectedDateStr}</h3>
-                                    </div>
-                                    
-                                    {/* List Blok yang sudah ada */}
-                                    <div className="p-5 flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950/50">
-                                        <h4 className="text-xs font-bold text-slate-500 mb-3 uppercase">Daftar Halangan (Blok)</h4>
-                                        {getBlocksForDate(selectedDateStr).length === 0 ? (
-                                            <p className="text-xs text-slate-400 italic text-center py-4">Tidak ada halangan. Anda tersedia seharian.</p>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                {getBlocksForDate(selectedDateStr).map((b: any) => (
-                                                    <div key={b.id} className="bg-white dark:bg-zinc-900 p-3 rounded-lg border border-slate-200 shadow-sm flex justify-between items-center">
-                                                        <div>
-                                                            <p className="font-bold text-xs text-rose-600">{b.time_start.slice(0,5)} - {b.time_end.slice(0,5)}</p>
-                                                            <p className="text-xs text-slate-600 mt-1">{b.reason}</p>
-                                                        </div>
-                                                        <button onClick={() => router.delete(`/${currentTeam?.slug}/jadwal/blocks/${b.id}`)} className="text-rose-400 hover:text-rose-600 p-1"><Trash2 size={14}/></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                        <div className="flex justify-between items-center mb-6 text-sm">
+                            <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="text-blue-600 hover:underline font-medium">&lt; Bulan sebelumnya</button>
+                            <span className="font-bold text-slate-800 text-base">{monthNames[month]} {year}</span>
+                            <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="text-blue-600 hover:underline font-medium">Bulan berikutnya &gt;</button>
+                        </div>
 
-                                    {/* Form Tambah Blok */}
-                                    <form onSubmit={submitBlock} className="p-5 border-t border-slate-100 dark:border-zinc-800 space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div><label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Mulai</label><input type="time" value={blockForm.data.time_start} onChange={e => blockForm.setData('time_start', e.target.value)} className="w-full text-xs rounded border-slate-200" required/></div>
-                                            <div><label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Selesai</label><input type="time" value={blockForm.data.time_end} onChange={e => blockForm.setData('time_end', e.target.value)} className="w-full text-xs rounded border-slate-200" required/></div>
-                                        </div>
-                                        <div><label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Keterangan / Alasan</label><input type="text" placeholder="Cth: Mengajar Kelas OTO-3A" value={blockForm.data.reason} onChange={e => blockForm.setData('reason', e.target.value)} className="w-full text-xs rounded border-slate-200" required/></div>
-                                        <button type="submit" disabled={blockForm.processing} className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded-lg text-xs mt-2 transition-colors">Tandai Tidak Tersedia</button>
-                                    </form>
-                                </>
-                            )}
+                        <div className="grid grid-cols-7 gap-3 mb-8">
+                            {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map(day => (
+                                <div key={day} className="text-sm font-bold text-slate-600 text-center mb-2">{day}</div>
+                            ))}
+                            
+                            {blanksArray.map((_, i) => <div key={`blank-${i}`} />)}
+                            
+                            {daysArray.map(day => {
+                                const dateStr = formatDateStr(day);
+                                const isSelected = selectedDates.includes(dateStr);
+                                return (
+                                    <button 
+                                        key={day}
+                                        onClick={() => toggleDate(dateStr)}
+                                        className={`
+                                            h-14 rounded-lg border text-sm font-bold flex items-center justify-center gap-1.5 transition-all
+                                            ${isSelected 
+                                                ? 'bg-blue-50 border-blue-500 text-blue-700' 
+                                                : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-slate-50'}
+                                        `}
+                                    >
+                                        {isSelected && <Check size={16} strokeWidth={3} />}
+                                        {day}
+                                    </button>
+                                )
+                            })}
+                        </div>
+
+                        <div className="flex flex-col md:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-4">
+                            <div className="flex items-center gap-3 text-sm">
+                                <button onClick={() => setSelectedDates([])} className="text-blue-600 hover:underline font-medium">Reset pilihan</button>
+                                <span className="text-slate-500">· {selectedDates.length} slot dipilih</span>
+                            </div>
+                            <button 
+                                onClick={submitAvailability} 
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 w-full md:w-auto justify-center transition-colors"
+                            >
+                                Simpan slot tersedia &rarr;
+                            </button>
                         </div>
                     </div>
                 )}

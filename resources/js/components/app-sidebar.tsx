@@ -70,6 +70,12 @@ export function AppSidebar() {
             show: can('judul.create'), // Misal hanya Mhs/Panitia
         },
         {
+            title: 'Pendaftaran',
+            href: teamUrl('pendaftaran'),
+            icon: ClipboardCheck,
+            show: true,
+        },
+        {   
             title: 'Jadwal & Sidang',
             href: teamUrl('jadwal'),
             icon: Calendar,

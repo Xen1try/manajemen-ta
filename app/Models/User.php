@@ -79,4 +79,16 @@ class User extends Authenticatable implements PasskeyUser
     {
         return $this->hasOne(MahasiswaProfile::class);
     }
+
+    // 1. Relasi untuk mengecek jadwal yang dimiliki mahasiswa
+    public function milestoneSchedules()
+    {
+        return $this->hasMany(\App\Models\MilestoneSchedule::class, 'mahasiswa_id');
+    }
+
+    // 2. Relasi untuk menarik data ketersediaan (waktu luang) dosen
+    public function availabilities()
+    {
+        return $this->hasMany(\App\Models\DosenAvailability::class, 'user_id');
+    }
 }

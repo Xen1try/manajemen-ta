@@ -7,6 +7,9 @@ use App\Http\Controllers\AcademicProfileController;
 use App\Http\Controllers\MasterDataController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\Teams\TeamInvitationController;
+use App\Http\Controllers\TimelineController;
+use App\Http\Controllers\TaProjectController;
+use App\Http\Controllers\RegistrationController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia; 
@@ -36,14 +39,18 @@ Route::prefix('{current_team}')
         Route::get('dokumen', function () { return Inertia::render('dokumen'); })->name('dokumen');
         Route::get('pengajuan-judul', function () { return Inertia::render('pengajuan-judul'); })->name('pengajuan-judul');
         Route::get('kehadiran-seminar', function () { return Inertia::render('kehadiran-seminar'); })->name('kehadiran-seminar');
+
+        // Rute Pendaftaran Milestone (Sempro, Semhas, Sidang)
+        Route::get('pendaftaran', [\App\Http\Controllers\RegistrationController::class, 'index'])->name('pendaftaran.index');
+        Route::post('pendaftaran', [\App\Http\Controllers\RegistrationController::class, 'store'])->name('pendaftaran.store');
         
         // Rute Penjadwalan Enterprise
         Route::get('jadwal', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('jadwal');
         
-        // Rute Khusus Dosen (Blok Waktu)
-        Route::post('jadwal/blocks', [\App\Http\Controllers\ScheduleController::class, 'storeBlock'])->name('jadwal.blocks.store');
-        Route::delete('jadwal/blocks/{block}', [\App\Http\Controllers\ScheduleController::class, 'destroyBlock'])->name('jadwal.blocks.destroy');
-
+        // Rute Khusus Dosen (Ketersediaan Waktu)
+        Route::post('jadwal/availabilities', [\App\Http\Controllers\ScheduleController::class, 'storeAvailability'])->name('jadwal.availabilities.store');
+        Route::delete('jadwal/availabilities/{availability}', [\App\Http\Controllers\ScheduleController::class, 'destroyAvailability'])->name('jadwal.availabilities.destroy');
+        
         // Rute Khusus Panitia
         Route::middleware(['permission:sidang.create'])->group(function () {
             Route::post('jadwal/generate', [\App\Http\Controllers\ScheduleController::class, 'generate'])->name('jadwal.generate');
@@ -52,7 +59,7 @@ Route::prefix('{current_team}')
             Route::post('jadwal/{schedule}/publish', [\App\Http\Controllers\ScheduleController::class, 'publish'])->name('jadwal.publish');
         });
 
-        // Route RBAC menggunakan Granular Permission[cite: 16]
+        // Route RBAC menggunakan Granular Permission
         Route::middleware(['permission:rbac.manage'])->group(function () {
             Route::get('rbac', [RbacController::class, 'index'])->name('rbac');
             Route::post('rbac/users/{user}/roles/{role}', [RbacController::class, 'toggleUserRole'])->name('rbac.toggle-role');

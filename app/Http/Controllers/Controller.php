@@ -12,24 +12,34 @@ class Controller extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
 
+    // Helper terpusat untuk otorisasi dan Role Bypass (God Mode)
+    protected function getUserRoleFlags($user)
+    {
+        $user->loadMissing('roles');
+        $roleNames = $user->roles->pluck('name')->toArray();
+        
+        $isAdmin = $user->hasPermission('master.manage') || in_array('Admin', $roleNames);
+
+        return (object) [
+            'isAdmin' => $isAdmin,
+            'isMahasiswa' => $isAdmin || in_array('Mahasiswa', $roleNames),
+            'isPanitia' => $isAdmin || $user->hasPermission('master.manage') || !empty(array_intersect(['Kaprodi', 'Panitia'], $roleNames)),
+            'isDosen' => $isAdmin || !empty(array_intersect(['Dosen Pembimbing', 'Penguji'], $roleNames)),
+            // Daftar role yang sudah diinjeksi 'God Mode' (berguna untuk Profil Akademik)
+            'activeRoleNames' => $isAdmin ? array_unique(array_merge($roleNames, ['Mahasiswa', 'Dosen Pembimbing', 'Panitia', 'Kaprodi'])) : $roleNames,
+        ];
+    }
+
     protected function enforceTimelinePhase($systemCodeKeyword)
     {
         $user = request()->user();
 
-        // 1. ADMIN OVERRIDE AMAN
-        if ($user) {
-            $user->loadMissing('roles');
-            $roleNames = $user->roles->pluck('name')->map(fn($name) => strtolower($name))->toArray();
-            $adminRoles = ['admin', 'administrator', 'panitia', 'kaprodi', 'super admin'];
-            
-            $isAdmin = $user->hasPermission('master.manage') || count(array_intersect($roleNames, $adminRoles)) > 0;
-
-            if ($isAdmin) {
-                return true; // Bypass Gatekeeper
-            }
+        // 1. ADMIN OVERRIDE AMAN (Menggunakan Helper)
+        if ($user && $this->getUserRoleFlags($user)->isAdmin) {
+            return true; 
         }
 
-        // 2. Validasi Reguler Mahasiswa & Dosen
+        // 2. Validasi Reguler
         $activeYear = AcademicYear::where('is_active', true)->with('timelines.items')->first();
         
         if (!$activeYear || $activeYear->timelines->isEmpty()) {

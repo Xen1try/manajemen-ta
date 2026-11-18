@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TaProject;
-use App\Models\ProjectPembimbing;
 use App\Models\AcademicYear;
 use App\Models\Competency;
+use App\Models\ProjectPembimbing;
+use App\Models\TaProject;
+use App\Models\TemaSelection;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class TaProjectController extends Controller
 {
@@ -14,60 +17,91 @@ class TaProjectController extends Controller
     {
         $activeYear = AcademicYear::where('is_active', true)->first();
         $user = clone $request->user();
-        $user->load(['dosenProfile']);
+        $user->load(['dosenProfile', 'mahasiswaProfile']);
 
-        // Panggil fungsi terpusat dari Controller.php
         $flags = $this->getUserRoleFlags($user);
 
-        $projects = TaProject::with(['pengusul', 'mahasiswas', 'pembimbings.dosen'])
+        $projects = TaProject::with(['pengusul:id,name', 'mahasiswas:id,name,email', 'pembimbings.dosen:id,name'])
             ->where('academic_year_id', $activeYear?->id)
-            ->latest()->get();
+            ->latest()
+            ->get();
 
         $temaSelection = null;
         if ($flags->isMahasiswa) {
-            $temaSelection = \App\Models\TemaSelection::where('academic_year_id', $activeYear?->id)
-                ->where('mahasiswa_id', $user->id)->first();
+            $temaSelection = TemaSelection::with([
+                'pilihan1:id,judul',
+                'pilihan2:id,judul',
+                'pilihan3:id,judul',
+            ])
+                ->where('academic_year_id', $activeYear?->id)
+                ->where('mahasiswa_id', $user->id)
+                ->first();
         }
 
-        $dosens = \App\Models\User::whereHas('roles', fn($q) => $q->whereIn('name', ['Dosen Pembimbing', 'Penguji']))->get(['id', 'name']);
-        $mahasiswas = \App\Models\User::whereHas('roles', fn($q) => $q->where('name', 'Mahasiswa'))->get(['id', 'name']);
-        
-        return \Inertia\Inertia::render('tema-matchmaking', [
+        // Daftar mahasiswa yang sudah mengunci pilihan tapi belum mendapat tim (untuk Panitia)
+        $unmatchedSelections = [];
+        if ($flags->isPanitia && $activeYear) {
+            $assignedStudentIds = $projects->pluck('mahasiswas')->flatten()->pluck('id')->unique()->toArray();
+            $unmatchedSelections = TemaSelection::with(['mahasiswa:id,name,email', 'pilihan1:id,judul', 'pilihan2:id,judul', 'pilihan3:id,judul'])
+                ->where('academic_year_id', $activeYear->id)
+                ->whereNotIn('mahasiswa_id', $assignedStudentIds)
+                ->orderBy('locked_at')
+                ->get();
+        }
+
+        $dosens = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['Dosen Pembimbing', 'Penguji']))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $mahasiswas = User::whereHas('roles', fn ($q) => $q->where('name', 'Mahasiswa'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return Inertia::render('tema-matchmaking', [
             'projects' => $projects,
             'temaSelection' => $temaSelection,
+            'unmatchedSelections' => $unmatchedSelections,
             'dosens' => $dosens,
             'mahasiswas' => $mahasiswas,
             'competencies' => Competency::orderBy('name', 'asc')->get(),
-            'dosenProfile' => $flags->isDosen ? $user->dosenProfile : null, 
+            'dosenProfile' => $flags->isDosen ? $user->dosenProfile : null,
+            'studentSkills' => $flags->isMahasiswa ? ($user->mahasiswaProfile->skill_vector ?? []) : [],
             'roleFlags' => [
                 'isMahasiswa' => $flags->isMahasiswa,
                 'isPanitia' => $flags->isPanitia,
                 'isDosen' => $flags->isDosen,
-            ]
+            ],
         ]);
     }
 
     public function store(Request $request)
     {
-        $this->enforceTimelinePhase('pembagian_tema'); 
+        $this->enforceTimelinePhase('pembagian_tema');
 
         $validated = $request->validate([
             'tipe' => 'required|in:Tipe 1,Tipe 2,Mandiri',
             'judul' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'required_skills' => 'nullable|array', 
+            'required_skills' => 'nullable|array',
             'kuota' => 'required|integer|min:1',
-            'mahasiswa_ids' => 'nullable|array', 
-            'mahasiswa_ids.*' => 'exists:users,id', 
-            'pembimbing_ids' => 'required|array', 
+            'mahasiswa_ids' => 'nullable|array',
+            'mahasiswa_ids.*' => 'exists:users,id',
+            'pembimbing_ids' => 'required|array|min:1',
+            'pembimbing_ids.*' => 'exists:users,id',
         ]);
 
         $activeYear = AcademicYear::where('is_active', true)->first();
-        if (!$activeYear) return redirect()->back()->withErrors('Tahun Ajaran aktif belum diatur.');
+        if (! $activeYear) {
+            return redirect()->back()->withErrors(['judul' => 'Tahun Ajaran aktif belum diatur.']);
+        }
 
         $status = 'Pending Kaprodi';
-        if ($validated['tipe'] === 'Tipe 1') $status = 'Assigned';
-        if ($validated['tipe'] === 'Tipe 2') $status = 'Matchmaking'; 
+        if ($validated['tipe'] === 'Tipe 1') {
+            $status = 'Assigned';
+        }
+        if ($validated['tipe'] === 'Tipe 2') {
+            $status = 'Matchmaking';
+        }
 
         $project = TaProject::create([
             'academic_year_id' => $activeYear->id,
@@ -80,18 +114,18 @@ class TaProjectController extends Controller
             'status' => $status,
         ]);
 
-        if ($validated['tipe'] === 'Tipe 1' && !empty($validated['mahasiswa_ids'])) {
-            $project->mahasiswas()->attach($validated['mahasiswa_ids']);
+        if ($validated['tipe'] === 'Tipe 1' && ! empty($validated['mahasiswa_ids'])) {
+            $project->mahasiswas()->attach(array_unique($validated['mahasiswa_ids']));
         } elseif ($validated['tipe'] === 'Mandiri') {
             $project->mahasiswas()->attach($request->user()->id);
         }
 
-        foreach ($validated['pembimbing_ids'] as $index => $dosenId) {
+        foreach (array_unique($validated['pembimbing_ids']) as $index => $dosenId) {
             ProjectPembimbing::create([
                 'ta_project_id' => $project->id,
                 'dosen_id' => $dosenId,
                 'role' => $index === 0 ? 'Utama' : 'Pendamping',
-                'urutan' => $index + 1
+                'urutan' => $index + 1,
             ]);
         }
 
@@ -101,6 +135,7 @@ class TaProjectController extends Controller
     public function approveMandiri(Request $request, $currentTeam, TaProject $project)
     {
         $project->update(['status' => 'Assigned']);
-        return redirect()->back();
+
+        return redirect()->back()->with('success', 'Pengajuan judul mandiri berhasil disetujui.');
     }
 }

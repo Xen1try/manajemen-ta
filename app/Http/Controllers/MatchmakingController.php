@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TemaSelection;
-use App\Models\TaProject;
 use App\Models\AcademicYear;
+use App\Models\TaProject;
+use App\Models\TemaSelection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MatchmakingController extends Controller
 {
@@ -14,9 +15,12 @@ class MatchmakingController extends Controller
         $this->enforceTimelinePhase('pembagian_tema');
 
         $validated = $request->validate([
-            'pilihan_1_id' => 'required|exists:ta_projects,id',
-            'pilihan_2_id' => 'required|exists:ta_projects,id',
+            'pilihan_1_id' => 'required|exists:ta_projects,id|different:pilihan_2_id|different:pilihan_3_id',
+            'pilihan_2_id' => 'required|exists:ta_projects,id|different:pilihan_3_id',
             'pilihan_3_id' => 'required|exists:ta_projects,id',
+        ], [
+            'pilihan_1_id.different' => 'Pilihan 1, 2, dan 3 harus berupa topik yang berbeda.',
+            'pilihan_2_id.different' => 'Pilihan 2 dan Pilihan 3 tidak boleh sama.',
         ]);
 
         $activeYear = AcademicYear::where('is_active', true)->first();
@@ -28,90 +32,184 @@ class MatchmakingController extends Controller
                 'pilihan_2_id' => $validated['pilihan_2_id'],
                 'pilihan_3_id' => $validated['pilihan_3_id'],
                 'status' => 'Locked',
-                'locked_at' => now(), 
+                'locked_at' => now(),
             ]
         );
-        return redirect()->back()->with('success', 'Pilihan berhasil dikunci!');
+
+        return redirect()->back()->with('success', 'Pilihan prioritas Anda berhasil dikunci!');
+    }
+
+    /**
+     * Hitung persentase kecocokan vektor skill mahasiswa terhadap syarat topik (0 - 100%)
+     */
+    private function calculateMatchScore(array $studentSkills, array $requiredSkills): array
+    {
+        $filteredReqs = array_filter($requiredSkills, fn ($r) => (int) ($r['level'] ?? 1) > 1);
+        if (empty($filteredReqs)) {
+            return ['eligible' => true, 'score' => 100];
+        }
+
+        $studentMap = [];
+        foreach ($studentSkills as $ss) {
+            $studentMap[strtolower(trim($ss['name'] ?? ''))] = (int) ($ss['level'] ?? 1);
+        }
+
+        $eligible = true;
+        $totalTarget = 0;
+        $achievedScore = 0;
+
+        foreach ($filteredReqs as $req) {
+            $key = strtolower(trim($req['name'] ?? ''));
+            $target = max(1, (int) ($req['level'] ?? 1));
+            $actual = $studentMap[$key] ?? 1;
+
+            if ($actual < $target) {
+                $eligible = false;
+            }
+
+            $totalTarget += $target;
+            $achievedScore += min($actual, $target); // Proporsi pemenuhan target
+        }
+
+        $percentage = $totalTarget > 0 ? (int) round(($achievedScore / $totalTarget) * 100) : 100;
+
+        return ['eligible' => $eligible, 'score' => $percentage];
     }
 
     public function runAlgorithm(Request $request)
     {
         $activeYear = AcademicYear::where('is_active', true)->first();
-
-        // 1. Reset mahasiswa dari proyek Tipe 2 yang sebelumnya berstatus Matchmaking/Draft
-        $projectsToReset = TaProject::where('academic_year_id', $activeYear->id)
-            ->whereIn('status', ['Draft Plotting', 'Matchmaking'])
-            ->where('tipe', 'Tipe 2')
-            ->get();
-
-        foreach ($projectsToReset as $proj) {
-            $proj->mahasiswas()->detach(); // Kosongkan tim
-            $proj->update(['status' => 'Matchmaking']); // Buka kembali loket
+        if (! $activeYear) {
+            return redirect()->back()->withErrors(['error' => 'Tahun ajaran aktif belum diatur.']);
         }
 
-        // 2. Tarik semua pilihan (First-Come First-Serve)
-        $selections = TemaSelection::where('academic_year_id', $activeYear->id)
-            ->whereIn('status', ['Locked', 'Matched'])
-            ->orderBy('locked_at', 'asc') 
-            ->get();
+        $matchedCount = 0;
+        $unmatchedCount = 0;
 
-        foreach ($selections as $selection) {
-            $student = $selection->mahasiswa;
-            $studentSkills = $student->mahasiswaProfile->skill_vector ?? [];
-            $choices = [$selection->pilihan_1_id, $selection->pilihan_2_id, $selection->pilihan_3_id];
-            $matched = false;
+        DB::transaction(function () use ($activeYear, &$matchedCount, &$unmatchedCount) {
+            // 1. Reset hanya proyek Tipe 2 yang belum di-finalisasi ('Assigned')
+            $projectsToReset = TaProject::where('academic_year_id', $activeYear->id)
+                ->whereIn('status', ['Draft Plotting', 'Matchmaking'])
+                ->where('tipe', 'Tipe 2')
+                ->get();
 
-            foreach ($choices as $projectId) {
-                if (!$projectId) continue;
-                $project = TaProject::find($projectId);
+            foreach ($projectsToReset as $proj) {
+                $proj->mahasiswas()->detach();
+                $proj->update(['status' => 'Matchmaking']);
+            }
 
-                // Cek apakah status Matchmaking dan KUOTA MASIH TERSEDIA
-                if ($project && $project->status === 'Matchmaking' && $project->mahasiswas()->count() < $project->kuota) {
-                    
-                    $reqSkills = $project->required_skills ?? []; 
-                    $isSkillMatch = true;
+            // Ambil ID mahasiswa yang sudah terikat permanen di proyek Assigned (Tipe 1 / Mandiri / Finalized)
+            $permanentlyAssignedIds = TaProject::where('academic_year_id', $activeYear->id)
+                ->where('status', 'Assigned')
+                ->with('mahasiswas:id')
+                ->get()
+                ->pluck('mahasiswas')
+                ->flatten()
+                ->pluck('id')
+                ->unique()
+                ->toArray();
 
-                    if (!empty($reqSkills)) {
-                        foreach ($reqSkills as $req) {
-                            $reqName = strtolower(trim($req['name']));
-                            $reqLevel = (int)$req['level'];
-                            $found = false;
+            // 2. Tarik semua mahasiswa yang sudah mengunci pilihan (urut berdasarkan waktu kunci)
+            $selections = TemaSelection::with('mahasiswa.mahasiswaProfile')
+                ->where('academic_year_id', $activeYear->id)
+                ->whereIn('status', ['Locked', 'Matched'])
+                ->whereNotIn('mahasiswa_id', $permanentlyAssignedIds)
+                ->orderBy('locked_at', 'asc')
+                ->get();
 
-                            foreach ($studentSkills as $ss) {
-                                if (strtolower(trim($ss['name'])) === $reqName && (int)$ss['level'] >= $reqLevel) {
-                                    $found = true;
-                                    break;
-                                }
+            foreach ($selections as $selection) {
+                $student = $selection->mahasiswa;
+                if (! $student) {
+                    continue;
+                }
+
+                $studentSkills = $student->mahasiswaProfile->skill_vector ?? [];
+                $choices = array_filter([
+                    $selection->pilihan_1_id,
+                    $selection->pilihan_2_id,
+                    $selection->pilihan_3_id,
+                ]);
+
+                $matched = false;
+
+                foreach ($choices as $projectId) {
+                    $project = TaProject::find($projectId);
+
+                    if ($project && in_array($project->status, ['Matchmaking', 'Draft Plotting']) && $project->mahasiswas()->count() < $project->kuota) {
+                        $eval = $this->calculateMatchScore($studentSkills, $project->required_skills ?? []);
+
+                        if ($eval['eligible']) {
+                            $project->mahasiswas()->attach($student->id);
+                            $selection->update(['status' => 'Matched']);
+                            $matched = true;
+                            $matchedCount++;
+
+                            // Ubah ke Draft Plotting begitu minimal 1 mahasiswa terpasang agar tampil di tab Hasil Plotting
+                            if ($project->status === 'Matchmaking') {
+                                $project->update(['status' => 'Draft Plotting']);
                             }
-                            if (!$found) { $isSkillMatch = false; break; }
+                            break;
                         }
-                    }
-
-                    if ($isSkillMatch) {
-                        // Masukkan mahasiswa ini ke dalam tim proyek
-                        $project->mahasiswas()->attach($student->id);
-                        $selection->update(['status' => 'Matched']);
-                        $matched = true;
-                        
-                        // Jika setelah dimasukkan kuotanya penuh, tutup pintunya (Ubah status)
-                        if ($project->mahasiswas()->count() >= $project->kuota) {
-                            $project->update(['status' => 'Draft Plotting']);
-                        }
-                        break; 
                     }
                 }
-            }
-            if (!$matched) { $selection->update(['status' => 'Locked']); }
-        }
 
-        return redirect()->back()->with('success', 'Algoritma Matchmaking Selesai. Silakan review hasil Draft Plotting.');
+                if (! $matched) {
+                    $selection->update(['status' => 'Locked']);
+                    $unmatchedCount++;
+                }
+            }
+        });
+
+        return redirect()->back()->with(
+            'success',
+            "Matchmaking selesai: {$matchedCount} mahasiswa berhasil dipasangkan, {$unmatchedCount} menunggu plotting manual."
+        );
     }
 
     public function overrideMatch(Request $request, $currentTeam, TaProject $project)
     {
-        $request->validate(['mahasiswa_id' => 'required|exists:users,id']);
-        // Override menambahkan mahasiswa secara paksa
-        $project->mahasiswas()->syncWithoutDetaching([$request->mahasiswa_id]);
-        return redirect()->back();
+        $validated = $request->validate(['mahasiswa_id' => 'required|exists:users,id']);
+        $mahasiswaId = (int) $validated['mahasiswa_id'];
+
+        $project->mahasiswas()->syncWithoutDetaching([$mahasiswaId]);
+
+        if ($project->status === 'Matchmaking') {
+            $project->update(['status' => 'Draft Plotting']);
+        }
+
+        TemaSelection::where('mahasiswa_id', $mahasiswaId)->update(['status' => 'Matched']);
+
+        return redirect()->back()->with('success', 'Mahasiswa berhasil ditambahkan ke tim secara manual.');
+    }
+
+    /**
+     * Lepas mahasiswa dari tim selama status proyek masih Draft Plotting
+     */
+    public function detachMember(Request $request, $currentTeam, TaProject $project, int $mahasiswaId)
+    {
+        abort_if($project->status === 'Assigned', 422, 'Tim yang sudah diresmikan tidak dapat diubah.');
+
+        $project->mahasiswas()->detach($mahasiswaId);
+        TemaSelection::where('mahasiswa_id', $mahasiswaId)->update(['status' => 'Locked']);
+
+        if ($project->mahasiswas()->count() === 0 && $project->tipe === 'Tipe 2') {
+            $project->update(['status' => 'Matchmaking']);
+        }
+
+        return redirect()->back()->with('success', 'Mahasiswa dikeluarkan dari draft tim.');
+    }
+
+    /**
+     * Resmikan seluruh Draft Plotting menjadi Assigned permanen
+     */
+    public function finalizePlotting(Request $request)
+    {
+        $activeYear = AcademicYear::where('is_active', true)->first();
+
+        $updated = TaProject::where('academic_year_id', $activeYear?->id)
+            ->where('status', 'Draft Plotting')
+            ->update(['status' => 'Assigned']);
+
+        return redirect()->back()->with('success', "{$updated} tim Draft Plotting berhasil diresmikan menjadi Assigned.");
     }
 }

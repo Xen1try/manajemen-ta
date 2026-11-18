@@ -1,12 +1,23 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, MessageSquareText, Calendar, FileText, Sparkles, ClipboardCheck, ShieldCheck } from 'lucide-react';
+import {
+    BookOpen,
+    Calendar,
+    CalendarCheck,
+    ClipboardCheck,
+    Clock,
+    Database,
+    FileText,
+    FolderGit2,
+    LayoutGrid,
+    MessageSquareText,
+    ShieldCheck,
+    Sparkles,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { TeamSwitcher } from '@/components/team-switcher';
-import { Database } from 'lucide-react';
-import { Clock } from 'lucide-react';
 import {
     Sidebar,
     SidebarContent,
@@ -18,91 +29,120 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 
+interface NavConfigItem {
+    title: string;
+    href: any;
+    icon: any;
+    /** Selalu tampil untuk semua user yang sudah login */
+    public?: boolean;
+    /** Tampil jika user punya SALAH SATU permission di daftar ini */
+    permissions?: string[];
+    /** Tampil otomatis jika user punya permission apa pun pada prefix modul ini (mis. 'bimbingan' -> 'bimbingan.*') */
+    modules?: string[];
+}
+
 export function AppSidebar() {
     const page = usePage();
-    const teamSlug = page.props.currentTeam?.slug;
-    
-    // Ambil akumulasi permissions dari user (via HandleInertiaRequests)
-    const permissions = (page.props.auth as any)?.permissions || [];
-    
-    // Helper function untuk cek granular permission
-    const can = (permissionKey: string) => permissions.includes(permissionKey);
+    const teamSlug = (page.props.currentTeam as any)?.slug;
+
+    // Ambil daftar permission aktual user dari HandleInertiaRequests
+    const userPermissions: string[] = (page.props.auth as any)?.permissions || [];
+
+    // Cek apakah user punya salah satu permission spesifik
+    const canAny = (keys: string[] = []) =>
+        keys.some((key) => userPermissions.includes(key));
+
+    // Cek otomatis apakah user punya akses apa pun pada modul (mis. 'bimbingan.read', 'bimbingan.verify', dll.)
+    const canAnyModule = (prefixes: string[] = []) =>
+        prefixes.some((prefix) =>
+            userPermissions.some(
+                (perm) => perm === prefix || perm.startsWith(`${prefix}.`),
+            ),
+        );
 
     const dashboardUrl = teamSlug ? dashboard(teamSlug) : '/';
     const teamUrl = (path: string) => (teamSlug ? `/${teamSlug}/${path}` : `/${path}`);
 
-    // Konfigurasi visibility menu berdasarkan permissions (CRUD-based)
-    const allNavItems = [
+    // Konfigurasi Menu Otomatis Berbasis Matriks RBAC
+    const allNavItems: NavConfigItem[] = [
         {
             title: 'Dashboard',
             href: dashboardUrl,
             icon: LayoutGrid,
-            show: true, // Publik setelah login
+            public: true,
         },
         {
             title: 'Bimbingan',
             href: teamUrl('bimbingan'),
             icon: MessageSquareText,
-            show: can('bimbingan.read'), 
-        },
-        {
-            title: 'Pengajuan Judul',
-            href: teamUrl('pengajuan-judul'),
-            icon: BookOpen,
-            show: can('judul.read'), 
+            modules: ['bimbingan'],
+            permissions: ['bimbingan.read', 'bimbingan.create', 'bimbingan.verify'],
         },
         {
             title: 'Tema & Matchmaking',
             href: teamUrl('tema-matchmaking'),
             icon: Sparkles,
-            show: can('judul.create') || can('judul.update'), // Contoh logika gabungan
+            modules: ['judul', 'tema', 'matchmaking'],
+            permissions: ['judul.read', 'judul.create', 'judul.update', 'judul.approve', 'master.manage'],
         },
         {
             title: 'Dokumen TA',
             href: teamUrl('dokumen'),
             icon: FileText,
-            show: true, // Asumsi semua bisa melihat dokumen
+            modules: ['dokumen'],
+            permissions: ['dokumen.read', 'dokumen.create', 'dokumen.verify'],
         },
         {
             title: 'Kehadiran Seminar',
             href: teamUrl('kehadiran-seminar'),
             icon: ClipboardCheck,
-            show: can('judul.create'), // Misal hanya Mhs/Panitia
+            modules: ['kehadiran', 'seminar'],
+            permissions: ['kehadiran.read', 'kehadiran.create', 'kehadiran.verify', 'judul.create'],
         },
         {
             title: 'Pendaftaran',
             href: teamUrl('pendaftaran'),
-            icon: ClipboardCheck,
-            show: true,
+            icon: CalendarCheck,
+            modules: ['pendaftaran'],
+            permissions: ['pendaftaran.read', 'pendaftaran.create', 'pendaftaran.verify', 'sidang.create'],
         },
-        {   
+        {
             title: 'Jadwal & Sidang',
             href: teamUrl('jadwal'),
             icon: Calendar,
-            show: can('sidang.read'),
+            modules: ['sidang', 'jadwal'],
+            permissions: ['sidang.read', 'sidang.create', 'jadwal.read'],
         },
         {
             title: 'Kontrol Timeline',
             href: teamUrl('timeline-kontrol'),
             icon: Clock,
-            show: can('master.manage'), // Hanya untuk admin/panitia
+            modules: ['timeline'],
+            permissions: ['master.manage', 'timeline.manage'],
         },
         {
             title: 'Data Master',
             href: teamUrl('master-data'),
             icon: Database,
-            show: can('master.manage'), 
+            modules: ['master'],
+            permissions: ['master.manage'],
         },
         {
             title: 'Pengaturan RBAC',
             href: teamUrl('rbac'),
             icon: ShieldCheck,
-            show: can('rbac.view'), // Granular check khusus admin
+            modules: ['rbac'],
+            permissions: ['rbac.manage', 'rbac.view'],
         },
     ];
 
-    // Filter menu dinamis
-    const mainNavItems = allNavItems.filter(item => item.show);
+    // Filter otomatis: hanya tampilkan menu yang permission/modulnya dimiliki user
+    const mainNavItems = allNavItems
+        .filter((item) => {
+            if (item.public) return true;
+            return canAny(item.permissions) || canAnyModule(item.modules);
+        })
+        .map(({ title, href, icon }) => ({ title, href, icon }));
 
     const footerNavItems = [
         {

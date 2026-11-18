@@ -63,75 +63,97 @@
 
 :root {
     color-scheme: light;
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    --background: oklch(0.996 0.002 250);
+    --foreground: oklch(0.18 0.015 250);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.18 0.015 250);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.18 0.015 250);
+
+    /* Biru Utama Polman Bandung (#0065B3) */
+    --primary: oklch(0.495 0.145 250);
+    --primary-foreground: oklch(0.99 0 0);
+
+    /* Sekunder & Muted bernuansa abu-abu industrial (#5D6063) */
+    --secondary: oklch(0.955 0.008 250);
+    --secondary-foreground: oklch(0.32 0.015 250);
+    --muted: oklch(0.955 0.008 250);
+    --muted-foreground: oklch(0.485 0.008 250);
+
+    /* Aksen biru muda lembut untuk hover & active item */
+    --accent: oklch(0.935 0.032 248);
+    --accent-foreground: oklch(0.43 0.14 250);
+
     --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
+    --destructive-foreground: oklch(0.99 0 0);
+    --border: oklch(0.91 0.01 250);
+    --input: oklch(0.91 0.01 250);
+    --ring: oklch(0.495 0.145 250);
+
+    /* Palet Chart harmonis dengan tema biru-abu Polman */
+    --chart-1: oklch(0.495 0.145 250);
+    --chart-2: oklch(0.62 0.13 220);
+    --chart-3: oklch(0.485 0.01 250);
+    --chart-4: oklch(0.72 0.14 195);
+    --chart-5: oklch(0.68 0.16 75);
+
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+
+    /* Sidebar selaras dengan aksen Polman */
+    --sidebar: oklch(0.98 0.005 250);
+    --sidebar-foreground: oklch(0.22 0.015 250);
+    --sidebar-primary: oklch(0.495 0.145 250);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-accent: oklch(0.935 0.032 248);
+    --sidebar-accent-foreground: oklch(0.43 0.14 250);
+    --sidebar-border: oklch(0.91 0.01 250);
+    --sidebar-ring: oklch(0.495 0.145 250);
 }
 
 .dark {
     color-scheme: dark;
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.145 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.145 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: oklch(0.637 0.237 25.331);
-    --border: oklch(0.269 0 0);
-    --input: oklch(0.269 0 0);
-    --ring: oklch(0.439 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.985 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(0.269 0 0);
-    --sidebar-ring: oklch(0.439 0 0);
+    /* Latar gelap bernuansa deep navy-slate */
+    --background: oklch(0.155 0.016 250);
+    --foreground: oklch(0.97 0.005 250);
+    --card: oklch(0.185 0.018 250);
+    --card-foreground: oklch(0.97 0.005 250);
+    --popover: oklch(0.185 0.018 250);
+    --popover-foreground: oklch(0.97 0.005 250);
+
+    /* Biru Polman dicerahkan agar tetap kontras di layar gelap */
+    --primary: oklch(0.64 0.155 248);
+    --primary-foreground: oklch(0.14 0.02 250);
+
+    --secondary: oklch(0.25 0.02 250);
+    --secondary-foreground: oklch(0.94 0.008 250);
+    --muted: oklch(0.25 0.02 250);
+    --muted-foreground: oklch(0.70 0.015 250);
+
+    --accent: oklch(0.27 0.045 248);
+    --accent-foreground: oklch(0.82 0.09 245);
+
+    --destructive: oklch(0.45 0.18 25);
+    --destructive-foreground: oklch(0.97 0.01 25);
+    --border: oklch(0.27 0.02 250);
+    --input: oklch(0.27 0.02 250);
+    --ring: oklch(0.64 0.155 248);
+
+    /* Palet Chart Dark Mode */
+    --chart-1: oklch(0.64 0.155 248);
+    --chart-2: oklch(0.70 0.14 210);
+    --chart-3: oklch(0.65 0.02 250);
+    --chart-4: oklch(0.76 0.14 185);
+    --chart-5: oklch(0.76 0.16 75);
+
+    /* Sidebar Dark Mode */
+    --sidebar: oklch(0.135 0.016 250);
+    --sidebar-foreground: oklch(0.95 0.006 250);
+    --sidebar-primary: oklch(0.64 0.155 248);
+    --sidebar-primary-foreground: oklch(0.14 0.02 250);
+    --sidebar-accent: oklch(0.24 0.04 248);
+    --sidebar-accent-foreground: oklch(0.84 0.08 245);
+    --sidebar-border: oklch(0.25 0.02 250);
+    --sidebar-ring: oklch(0.64 0.155 248);
 }
 
 @layer base {

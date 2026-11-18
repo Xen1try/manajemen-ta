@@ -8,12 +8,25 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckPermission
 {
-    public function handle(Request $request, Closure $next, string $permission): Response
+    public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
-        if (! $request->user() || ! $request->user()->hasPermission($permission)) {
-            abort(403, 'Akses Ditolak: Anda tidak memiliki izin ('.$permission.').');
+        $user = $request->user();
+
+        if (! $user) {
+            abort(403, 'Akses Ditolak: Silakan login terlebih dahulu.');
         }
 
-        return $next($request);
+        // Super Admin otomatis lolos semua pengecekan permission
+        if ($user->roles()->where('name', 'Admin')->exists()) {
+            return $next($request);
+        }
+
+        foreach ($permissions as $permission) {
+            if ($user->hasPermission(trim($permission))) {
+                return $next($request);
+            }
+        }
+
+        abort(403, 'Akses Ditolak: Anda tidak memiliki izin (' . implode(' / ', $permissions) . ').');
     }
 }

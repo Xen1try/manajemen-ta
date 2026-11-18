@@ -10,6 +10,8 @@ use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\TimelineController;
 use App\Http\Controllers\TaProjectController;
 use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\SeminarAttendanceController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia; 
@@ -32,17 +34,34 @@ Route::prefix('{current_team}')
         Route::post('tema-matchmaking/lock', [\App\Http\Controllers\MatchmakingController::class, 'lockChoices'])->name('tema-matchmaking.lock');
         Route::post('tema-matchmaking/run-algorithm', [\App\Http\Controllers\MatchmakingController::class, 'runAlgorithm'])->name('tema-matchmaking.run-algorithm')->middleware('permission:master.manage');
         Route::post('tema-matchmaking/{project}/override', [\App\Http\Controllers\MatchmakingController::class, 'overrideMatch'])->name('tema-matchmaking.override')->middleware('permission:master.manage');
+        Route::delete('tema-matchmaking/{project}/members/{mahasiswaId}', [\App\Http\Controllers\MatchmakingController::class, 'detachMember'])->name('tema-matchmaking.detach')->middleware('permission:master.manage');
+        Route::post('tema-matchmaking/finalize', [\App\Http\Controllers\MatchmakingController::class, 'finalizePlotting'])->name('tema-matchmaking.finalize')->middleware('permission:master.manage');
         
+        // Rute Bimbingan
         Route::get('bimbingan', [BimbinganController::class, 'index'])->name('bimbingan');
         Route::post('bimbingan', [BimbinganController::class, 'store'])->name('bimbingan.store');
+        Route::put('bimbingan/{bimbingan}', [BimbinganController::class, 'update'])->name('bimbingan.update');
+        Route::delete('bimbingan/{bimbingan}', [BimbinganController::class, 'destroy'])->name('bimbingan.destroy');
+        Route::patch('bimbingan/{bimbingan}/verify', [BimbinganController::class, 'verify'])->name('bimbingan.verify');
 
-        Route::get('dokumen', function () { return Inertia::render('dokumen'); })->name('dokumen');
-        Route::get('pengajuan-judul', function () { return Inertia::render('pengajuan-judul'); })->name('pengajuan-judul');
-        Route::get('kehadiran-seminar', function () { return Inertia::render('kehadiran-seminar'); })->name('kehadiran-seminar');
+        // Rute Manajemen Dokumen & iThenticate 
+        Route::get('dokumen', [DocumentController::class, 'index'])->name('dokumen');
+        Route::post('dokumen', [DocumentController::class, 'store'])->name('dokumen.store');
+        Route::post('dokumen/{document}/replace', [DocumentController::class, 'update'])->name('dokumen.update');
+        Route::delete('dokumen/{document}', [DocumentController::class, 'destroy'])->name('dokumen.destroy');
+        Route::patch('dokumen/{document}/verify', [DocumentController::class, 'verify'])->name('dokumen.verify');
+
+        // Rute Kehadiran Seminar
+        Route::get('kehadiran-seminar', [SeminarAttendanceController::class, 'index'])->name('kehadiran-seminar');
+        Route::post('kehadiran-seminar/record-attendees', [SeminarAttendanceController::class, 'storeByPresenter'])->name('kehadiran-seminar.record-attendees');
+        Route::put('kehadiran-seminar/{attendance}', [SeminarAttendanceController::class, 'updateByPresenter'])->name('kehadiran-seminar.update');
+        Route::delete('kehadiran-seminar/{attendance}', [SeminarAttendanceController::class, 'destroy'])->name('kehadiran-seminar.destroy');
+        Route::patch('kehadiran-seminar/{attendance}/verify', [SeminarAttendanceController::class, 'verify'])->name('kehadiran-seminar.verify');
 
         // Rute Pendaftaran Milestone (Sempro, Semhas, Sidang)
         Route::get('pendaftaran', [\App\Http\Controllers\RegistrationController::class, 'index'])->name('pendaftaran.index');
         Route::post('pendaftaran', [\App\Http\Controllers\RegistrationController::class, 'store'])->name('pendaftaran.store');
+        Route::patch('pendaftaran/{registration}/verify', [\App\Http\Controllers\RegistrationController::class, 'verify'])->name('pendaftaran.verify');
         
         // Rute Penjadwalan Enterprise
         Route::get('jadwal', [\App\Http\Controllers\ScheduleController::class, 'index'])->name('jadwal');
@@ -57,6 +76,7 @@ Route::prefix('{current_team}')
             Route::post('jadwal/{schedule}/assignee', [\App\Http\Controllers\ScheduleController::class, 'updateAssignee'])->name('jadwal.assignee');
             Route::put('jadwal/{schedule}', [\App\Http\Controllers\ScheduleController::class, 'updateSchedule'])->name('jadwal.update'); // Rute Update Waktu
             Route::post('jadwal/{schedule}/publish', [\App\Http\Controllers\ScheduleController::class, 'publish'])->name('jadwal.publish');
+            Route::post('jadwal/publish-all', [\App\Http\Controllers\ScheduleController::class, 'publishAll'])->name('jadwal.publish-all');
         });
 
         // Route RBAC menggunakan Granular Permission
@@ -67,6 +87,7 @@ Route::prefix('{current_team}')
             Route::post('rbac/roles', [RbacController::class, 'storeRole'])->name('rbac.roles.store');
             Route::delete('rbac/roles/{role}', [RbacController::class, 'destroyRole'])->name('rbac.roles.destroy');
             Route::post('rbac/roles/{role}/permissions', [RbacController::class, 'updatePermission'])->name('rbac.permissions.update');
+            Route::post('rbac/roles/{role}/permissions/bulk', [RbacController::class, 'toggleModulePermissions'])->name('rbac.permissions.bulk');
         });
 
         // Route Master Data (Hanya untuk yang punya akses master.manage)

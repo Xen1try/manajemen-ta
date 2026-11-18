@@ -1,20 +1,26 @@
-import { Head } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import { 
-    GraduationCap, 
-    MessageSquareText, 
-    FileText, 
-    CalendarDays, 
-    CheckCircle2, 
-    ArrowRight, 
-    MoreHorizontal,
-    Clock
+import { Head, Link, usePage } from '@inertiajs/react';
+import {
+    AlertCircle,
+    ArrowRight,
+    BookOpen,
+    CalendarDays,
+    CheckCircle2,
+    ClipboardCheck,
+    Clock,
+    FileCheck2,
+    GraduationCap,
+    Layers,
+    MessageSquareText,
+    ShieldCheck,
+    Sparkles,
+    Users,
 } from 'lucide-react';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'TA Management',
+        title: 'SIMTA',
         href: '/dashboard',
     },
     {
@@ -23,216 +29,731 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
+interface DashboardProps {
+    roleView: 'admin' | 'dosen' | 'mahasiswa';
+    todayDate: string;
+    activeYearName: string;
+    adminData: any;
+    dosenData: any;
+    studentData: any;
+}
+
+export default function Dashboard({
+    roleView,
+    todayDate,
+    activeYearName,
+    adminData,
+    dosenData,
+    studentData,
+}: DashboardProps) {
+    const { currentTeam, auth } = usePage().props as any;
+    const baseUrl = `/${currentTeam?.slug}`;
+
+    const formatShortDate = (dateStr: string | null) => {
+        if (!dateStr) return '-';
+        const clean = dateStr.split('T')[0];
+        const parts = clean.split('-');
+        if (parts.length < 3) return dateStr;
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+        return `${parts[2]} ${months[parseInt(parts[1], 10) - 1]}`;
+    };
+
     return (
         <>
-            <Head title="Overview TA" />
+            <Head title="Overview Tugas Akhir" />
 
-            <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full space-y-8">
-                
-                {/* Welcome Section */}
-                <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+            <div className="mx-auto w-full max-w-7xl flex-1 space-y-8 p-4 md:p-8">
+                {/* Welcome Header */}
+                <div className="flex flex-col justify-between gap-4 border-b border-border pb-6 md:flex-row md:items-end">
                     <div>
-                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider mb-1 uppercase">
-                            Senin, 14 September 2026
-                        </p>
-                        <h1 className="text-3xl font-serif font-bold text-slate-900 dark:text-zinc-100">
-                            Ringkasan pengelolaan TA.
+                        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold tracking-wider text-primary uppercase">
+                                {todayDate}
+                            </span>
+                            <span className="text-muted-foreground">·</span>
+                            <span className="rounded-md bg-secondary px-2 py-0.5 text-[11px] font-semibold text-secondary-foreground">
+                                {activeYearName}
+                            </span>
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+                            Selamat datang, {auth?.user?.name?.split(' ')[0] ?? 'Pengguna'}.
                         </h1>
-                        <p className="text-slate-500 dark:text-zinc-400 text-sm mt-1">
-                            Monitor aktivitas dan progres tugas akhir minggu ini.
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {roleView === 'admin' &&
+                                'Pantau distribusi judul, antrean penjadwalan ujian, dan validasi administrasi Tugas Akhir.'}
+                            {roleView === 'dosen' &&
+                                'Kelola validasi logbook mahasiswa bimbingan, presensi seminar, dan jadwal menguji Anda.'}
+                            {roleView === 'mahasiswa' &&
+                                'Monitor progres bimbingan, syarat kehadiran seminar, dan jadwal milestone Tugas Akhir Anda.'}
                         </p>
                     </div>
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 shadow-sm transition-colors w-full md:w-auto">
-                        <CalendarDays size={16} /> Kelola jadwal
-                    </button>
-                </div>
 
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Highlight Card */}
-                    <div className="bg-blue-600 dark:bg-blue-700 text-white p-5 rounded-xl shadow-sm border border-blue-600 dark:border-blue-700 flex flex-col justify-between h-36">
-                        <div className="flex justify-between items-start">
-                            <div className="bg-blue-500/50 p-2 rounded-lg">
-                                <GraduationCap size={20} className="text-white" />
-                            </div>
-                            <MoreHorizontal size={18} className="text-blue-200" />
-                        </div>
-                        <div>
-                            <h2 className="text-3xl font-bold">12</h2>
-                            <p className="text-sm text-blue-100 mt-1">4 perlu perhatian</p>
-                        </div>
-                    </div>
-
-                    {/* Standard Card 1 */}
-                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between h-36">
-                        <div className="flex justify-between items-start text-slate-500 dark:text-zinc-400">
-                            <p className="text-sm font-medium">Total bimbingan</p>
-                            <MessageSquareText size={18} />
-                        </div>
-                        <div>
-                            <h2 className="text-3xl font-bold text-slate-900 dark:text-zinc-100">
-                                23<span className="text-base font-normal text-slate-500 dark:text-zinc-400 ml-1">sesi</span>
-                            </h2>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                                +2 sesi bulan ini
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Standard Card 2 */}
-                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between h-36">
-                        <div className="flex justify-between items-start text-slate-500 dark:text-zinc-400">
-                            <p className="text-sm font-medium">Dokumen disetujui</p>
-                            <FileText size={18} />
-                        </div>
-                        <div>
-                            <h2 className="text-3xl font-bold text-slate-900 dark:text-zinc-100">
-                                8<span className="text-base font-normal text-slate-500 dark:text-zinc-400 ml-1">/ 9</span>
-                            </h2>
-                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                                1 dokumen perlu revisi
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Standard Card 3 */}
-                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col justify-between h-36">
-                        <div className="flex justify-between items-start text-slate-500 dark:text-zinc-400">
-                            <p className="text-sm font-medium">Sidang minggu ini</p>
-                            <CalendarDays size={18} />
-                        </div>
-                        <div>
-                            <h2 className="text-3xl font-bold text-slate-900 dark:text-zinc-100">3</h2>
-                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                                18–20 Juni 2025
-                            </p>
-                        </div>
+                    <div className="flex flex-wrap gap-2">
+                        {roleView === 'admin' && (
+                            <Link
+                                href={`${baseUrl}/jadwal`}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition hover:opacity-90"
+                            >
+                                <CalendarDays size={16} /> Kelola Penjadwalan
+                            </Link>
+                        )}
+                        {roleView === 'dosen' && (
+                            <Link
+                                href={`${baseUrl}/bimbingan`}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition hover:opacity-90"
+                            >
+                                <MessageSquareText size={16} /> Verifikasi Bimbingan
+                            </Link>
+                        )}
+                        {roleView === 'mahasiswa' && (
+                            <Link
+                                href={`${baseUrl}/bimbingan`}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition hover:opacity-90"
+                            >
+                                <MessageSquareText size={16} /> Catat Bimbingan
+                            </Link>
+                        )}
                     </div>
                 </div>
 
-                {/* Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    {/* Timeline Column */}
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-                                Milestone tugas akhir
-                            </h2>
-                            <button className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
-                                Lihat detail <ArrowRight size={14} />
-                            </button>
-                        </div>
-                        
-                        <div className="space-y-6">
-                            {[
-                                { title: 'Proposal disetujui', date: '12 Feb 2025', done: true, pending: false },
-                                { title: 'Seminar proposal', date: '28 Feb 2025', done: true, pending: false },
-                                { title: 'Pelaksanaan penelitian', date: 'Mar — Mei 2025', done: true, pending: false },
-                                { title: 'Sidang tugas akhir', date: '18 Jun 2025', done: false, pending: true },
-                            ].map((step, idx) => (
-                                <div key={idx} className="flex gap-4 relative">
-                                    {/* Vertical Line */}
-                                    {idx < 3 && (
-                                        <div className="absolute left-[11px] top-7 bottom-[-20px] w-[2px] bg-slate-100 dark:bg-zinc-800"></div>
-                                    )}
-                                    
-                                    {/* Indicator Circle */}
-                                    <div className="relative z-10 bg-white dark:bg-zinc-900 pt-1">
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 ${
-                                            step.done 
-                                                ? 'bg-emerald-50 border-emerald-500 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' 
-                                                : step.pending
-                                                    ? 'border-blue-500 bg-blue-500 text-white'
-                                                    : 'border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800'
-                                        }`}>
-                                            {step.done ? <CheckCircle2 size={14} /> : (step.pending ? <span className="w-2 h-2 rounded-full bg-white"></span> : '')}
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Text Content */}
-                                    <div className="flex-1 pb-1 flex justify-between items-start">
-                                        <div>
-                                            <h3 className={`text-sm font-semibold ${step.pending ? 'text-slate-900 dark:text-zinc-100' : 'text-slate-700 dark:text-zinc-300'}`}>
-                                                {step.title}
-                                            </h3>
-                                            <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">
-                                                {step.date}
-                                            </p>
-                                        </div>
-                                        {step.pending && (
-                                            <span className="px-2 py-1 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500 text-[10px] font-bold rounded">
-                                                Berikutnya
+                {/* ===================================================================== */}
+                {/* VIEW 1: DASHBOARD MAHASISWA                                           */}
+                {/* ===================================================================== */}
+                {roleView === 'mahasiswa' && studentData && (
+                    <>
+                        {/* Banner Proyek TA Aktif */}
+                        <div className="rounded-xl border border-primary/20 bg-accent/40 p-5">
+                            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground uppercase">
+                                            {studentData.project
+                                                ? studentData.project.status
+                                                : 'Belum Ada Judul'}
+                                        </span>
+                                        {studentData.project?.tipe && (
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                Skema: {studentData.project.tipe}
                                             </span>
                                         )}
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Recent Activity Column */}
-                    <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-                                Bimbingan terakhir
-                            </h2>
-                            <button className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
-                                <MoreHorizontal size={18} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-5 flex-1">
-                            {/* Activity Item 1 */}
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                                    <MessageSquareText size={16} />
-                                </div>
-                                <div className="border-b border-slate-100 dark:border-zinc-800 pb-5 w-full">
-                                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Review progres implementasi</h3>
-                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                                        Revisi modul akuisisi data dan tambahkan pengujian reliabilitas.
+                                    <h2 className="text-base font-bold text-foreground md:text-lg">
+                                        {studentData.project
+                                            ? studentData.project.judul
+                                            : 'Anda belum memiliki judul Tugas Akhir yang ditetapkan'}
+                                    </h2>
+                                    <p className="text-xs text-muted-foreground">
+                                        {studentData.project?.pembimbings?.length > 0
+                                            ? `Pembimbing: ${studentData.project.pembimbings.join(' · ')}`
+                                            : 'Silakan pilih topik di Bursa Judul atau ajukan judul mandiri.'}
                                     </p>
-                                    <div className="flex items-center gap-1 mt-2 text-[10px] text-slate-400 font-medium">
-                                        <Clock size={12} /> 11 JUN
-                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Activity Item 2 */}
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                                    <MessageSquareText size={16} />
+                                <Link
+                                    href={`${baseUrl}/tema-matchmaking`}
+                                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                                >
+                                    <BookOpen size={14} className="text-primary" />
+                                    {studentData.project ? 'Detail Topik TA' : 'Ajukan / Pilih Topik'}
+                                </Link>
+                            </div>
+                        </div>
+
+                        {/* 4 Kartu Metrik Syarat & Jadwal */}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            {/* Highlight Card: Kelayakan Sidang */}
+                            <div className="flex h-36 flex-col justify-between rounded-xl bg-primary p-5 text-primary-foreground shadow-xs">
+                                <div className="flex items-start justify-between">
+                                    <div className="rounded-lg bg-white/15 p-2">
+                                        <GraduationCap size={20} className="text-white" />
+                                    </div>
+                                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase">
+                                        Prasyarat Sidang
+                                    </span>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Validasi metodologi penelitian</h3>
-                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                                        Metode eksperimen disetujui dengan beberapa catatan minor.
+                                    <h2 className="text-2xl font-bold">
+                                        {studentData.metrics.is_sidang_eligible
+                                            ? 'Eligible Sidang'
+                                            : 'Dalam Progres'}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-primary-foreground/85">
+                                        {studentData.metrics.is_sidang_eligible
+                                            ? 'Semua syarat minimum terpenuhi'
+                                            : 'Lengkapi bimbingan & presensi seminar'}
                                     </p>
-                                    <div className="flex items-center gap-1 mt-2 text-[10px] text-slate-400 font-medium">
-                                        <Clock size={12} /> 04 JUN
-                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Card Bimbingan */}
+                            <Link
+                                href={`${baseUrl}/bimbingan`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Bimbingan Valid</p>
+                                    <MessageSquareText size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {studentData.metrics.bimbingan_approved}
+                                        <span className="ml-1 text-base font-normal text-muted-foreground">
+                                            / {studentData.metrics.bimbingan_target} sesi
+                                        </span>
+                                    </h2>
+                                    <p className="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                        {studentData.metrics.bimbingan_pending} menunggu verifikasi
+                                    </p>
+                                </div>
+                            </Link>
+
+                            {/* Card Kehadiran Seminar */}
+                            <Link
+                                href={`${baseUrl}/kehadiran-seminar`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Kehadiran Seminar</p>
+                                    <ClipboardCheck size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {studentData.metrics.seminar_approved}
+                                        <span className="ml-1 text-base font-normal text-muted-foreground">
+                                            / {studentData.metrics.seminar_target} kali
+                                        </span>
+                                    </h2>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        {studentData.metrics.seminar_pending} menunggu validasi panitia
+                                    </p>
+                                </div>
+                            </Link>
+
+                            {/* Card Jadwal Terdekat */}
+                            <Link
+                                href={`${baseUrl}/jadwal`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Jadwal Terdekat</p>
+                                    <CalendarDays size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold text-foreground">
+                                        {studentData.nextSchedule
+                                            ? studentData.nextSchedule.milestone_type
+                                            : 'Belum Ada'}
+                                    </h2>
+                                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                                        {studentData.nextSchedule
+                                            ? `${studentData.nextSchedule.date} · ${studentData.nextSchedule.room}`
+                                            : 'Menunggu rilis jadwal panitia'}
+                                    </p>
+                                </div>
+                            </Link>
+                        </div>
+
+                        {/* Content Grid: Milestone & Bimbingan Terakhir */}
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                            {/* Milestone Tugas Akhir */}
+                            <div className="rounded-xl border border-border bg-card p-6 shadow-xs">
+                                <div className="mb-6 flex items-center justify-between">
+                                    <h2 className="text-base font-bold text-foreground">
+                                        Milestone Tugas Akhir
+                                    </h2>
+                                    <Link
+                                        href={`${baseUrl}/pendaftaran`}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                                    >
+                                        Pendaftaran ujian <ArrowRight size={14} />
+                                    </Link>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {studentData.milestones.map((step: any, idx: number) => (
+                                        <div key={idx} className="relative flex gap-4">
+                                            {idx < studentData.milestones.length - 1 && (
+                                                <div className="absolute top-7 bottom-[-20px] left-[11px] w-[2px] bg-border" />
+                                            )}
+
+                                            <div className="relative z-10 bg-card pt-1">
+                                                <div
+                                                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 ${
+                                                        step.done
+                                                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                                            : step.current
+                                                              ? 'border-primary bg-primary text-primary-foreground'
+                                                              : 'border-border bg-secondary'
+                                                    }`}
+                                                >
+                                                    {step.done ? (
+                                                        <CheckCircle2 size={14} />
+                                                    ) : step.current ? (
+                                                        <span className="h-2 w-2 rounded-full bg-white" />
+                                                    ) : null}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-1 items-start justify-between pb-1">
+                                                <div>
+                                                    <h3
+                                                        className={`text-sm font-semibold ${
+                                                            step.current
+                                                                ? 'text-foreground'
+                                                                : 'text-muted-foreground'
+                                                        }`}
+                                                    >
+                                                        {step.title}
+                                                    </h3>
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {step.date}
+                                                    </p>
+                                                </div>
+                                                {step.current && (
+                                                    <span className="rounded bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                                        Tahap Aktif
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Bimbingan Terakhir */}
+                            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-xs">
+                                <div className="mb-6 flex items-center justify-between">
+                                    <h2 className="text-base font-bold text-foreground">
+                                        Bimbingan Terakhir
+                                    </h2>
+                                    <span className="text-xs text-muted-foreground">
+                                        {studentData.recentBimbingans.length} terbaru
+                                    </span>
+                                </div>
+
+                                <div className="flex-1 space-y-5">
+                                    {studentData.recentBimbingans.length === 0 ? (
+                                        <div className="py-10 text-center text-sm text-muted-foreground">
+                                            Belum ada catatan bimbingan. Mulai catat progres pertama Anda!
+                                        </div>
+                                    ) : (
+                                        studentData.recentBimbingans.map((log: any, idx: number) => (
+                                            <div key={log.id} className="flex gap-3">
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                                                    <MessageSquareText size={16} />
+                                                </div>
+                                                <div
+                                                    className={`w-full ${
+                                                        idx < studentData.recentBimbingans.length - 1
+                                                            ? 'border-b border-border pb-4'
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <h3 className="text-sm font-bold text-foreground">
+                                                            {log.topic}
+                                                        </h3>
+                                                        <span
+                                                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                                                log.status === 'approved'
+                                                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                                                    : log.status === 'rejected'
+                                                                      ? 'bg-rose-500/10 text-rose-600'
+                                                                      : 'bg-amber-500/10 text-amber-600'
+                                                            }`}
+                                                        >
+                                                            {log.status === 'approved'
+                                                                ? 'Valid'
+                                                                : log.status === 'rejected'
+                                                                  ? 'Revisi'
+                                                                  : 'Pending'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                                                        {log.notes}
+                                                    </p>
+                                                    <div className="mt-2 flex items-center gap-2 text-[10px] font-medium text-muted-foreground">
+                                                        <Clock size={12} /> {formatShortDate(log.date)} ·{' '}
+                                                        {log.lecturer_name}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div className="mt-4 border-t border-border pt-4">
+                                    <Link
+                                        href={`${baseUrl}/bimbingan`}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                                    >
+                                        Buka ruang bimbingan <ArrowRight size={14} />
+                                    </Link>
                                 </div>
                             </div>
                         </div>
+                    </>
+                )}
 
-                        {/* Footer Action */}
-                        <div className="pt-4 mt-4 border-t border-slate-100 dark:border-zinc-800">
-                            <button className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
-                                Buka ruang bimbingan <ArrowRight size={14} />
-                            </button>
+                {/* ===================================================================== */}
+                {/* VIEW 2: DASHBOARD DOSEN PEMBIMBING / PENGUJI                          */}
+                {/* ===================================================================== */}
+                {roleView === 'dosen' && dosenData && (
+                    <>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="flex h-36 flex-col justify-between rounded-xl bg-primary p-5 text-primary-foreground shadow-xs">
+                                <div className="flex items-start justify-between">
+                                    <div className="rounded-lg bg-white/15 p-2">
+                                        <AlertCircle size={20} className="text-white" />
+                                    </div>
+                                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase">
+                                        Perlu Validasi
+                                    </span>
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold">
+                                        {dosenData.metrics.pending_bimbingan}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-primary-foreground/85">
+                                        Logbook bimbingan menunggu approval
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs">
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Mahasiswa Bimbingan</p>
+                                    <Users size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {dosenData.metrics.mentee_projects}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Total {dosenData.metrics.total_bimbingan} sesi bimbingan tercatat
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Link
+                                href={`${baseUrl}/kehadiran-seminar`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Presensi Seminar</p>
+                                    <ClipboardCheck size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {dosenData.metrics.pending_attendances}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                        Daftar hadir menunggu validasi
+                                    </p>
+                                </div>
+                            </Link>
+
+                            <Link
+                                href={`${baseUrl}/jadwal`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Jadwal Menguji</p>
+                                    <CalendarDays size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {dosenData.metrics.upcoming_exams}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Sesi ujian mendatang
+                                    </p>
+                                </div>
+                            </Link>
                         </div>
-                    </div>
-                </div>
+
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                            {/* Antrean Bimbingan Mahasiswa */}
+                            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-xs">
+                                <div className="mb-5 flex items-center justify-between">
+                                    <h2 className="text-base font-bold text-foreground">
+                                        Aktivitas Bimbingan Mahasiswa
+                                    </h2>
+                                    <Link
+                                        href={`${baseUrl}/bimbingan`}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                                    >
+                                        Lihat semua <ArrowRight size={14} />
+                                    </Link>
+                                </div>
+
+                                <div className="divide-y divide-border">
+                                    {dosenData.recentBimbingans.length === 0 ? (
+                                        <p className="py-8 text-center text-sm text-muted-foreground">
+                                            Belum ada catatan bimbingan masuk.
+                                        </p>
+                                    ) : (
+                                        dosenData.recentBimbingans.map((item: any) => (
+                                            <div
+                                                key={item.id}
+                                                className="flex items-start justify-between gap-3 py-3.5 first:pt-0 last:pb-0"
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold text-primary">
+                                                        {item.user?.name ?? 'Mahasiswa'}
+                                                    </p>
+                                                    <h3 className="truncate text-sm font-semibold text-foreground">
+                                                        {item.topic}
+                                                    </h3>
+                                                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                                        {formatShortDate(item.date)}
+                                                    </p>
+                                                </div>
+                                                <span
+                                                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                                                        item.status === 'approved'
+                                                            ? 'bg-emerald-500/10 text-emerald-600'
+                                                            : 'bg-amber-500/10 text-amber-600'
+                                                    }`}
+                                                >
+                                                    {item.status === 'approved' ? 'Tervalidasi' : 'Menunggu'}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Jadwal Menguji / Membimbing */}
+                            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-xs">
+                                <div className="mb-5 flex items-center justify-between">
+                                    <h2 className="text-base font-bold text-foreground">
+                                        Jadwal Sidang & Seminar Anda
+                                    </h2>
+                                    <Link
+                                        href={`${baseUrl}/jadwal`}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                                    >
+                                        Atur ketersediaan <ArrowRight size={14} />
+                                    </Link>
+                                </div>
+
+                                <div className="divide-y divide-border">
+                                    {dosenData.upcomingSchedules.length === 0 ? (
+                                        <p className="py-8 text-center text-sm text-muted-foreground">
+                                            Belum ada jadwal ujian mendatang yang ditugaskan kepada Anda.
+                                        </p>
+                                    ) : (
+                                        dosenData.upcomingSchedules.map((sched: any) => (
+                                            <div
+                                                key={sched.id}
+                                                className="flex items-center justify-between gap-3 py-3.5 first:pt-0 last:pb-0"
+                                            >
+                                                <div>
+                                                    <span className="rounded bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
+                                                        {sched.milestone_type}
+                                                    </span>
+                                                    <h3 className="mt-1 text-sm font-bold text-foreground">
+                                                        {sched.mahasiswa?.name ?? 'Mahasiswa'}
+                                                    </h3>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {formatShortDate(sched.date)} ·{' '}
+                                                        {sched.room ?? 'Ruang Ujian'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* ===================================================================== */}
+                {/* VIEW 3: DASHBOARD PANITIA TA / ADMIN                                  */}
+                {/* ===================================================================== */}
+                {roleView === 'admin' && adminData && (
+                    <>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="flex h-36 flex-col justify-between rounded-xl bg-primary p-5 text-primary-foreground shadow-xs">
+                                <div className="flex items-start justify-between">
+                                    <div className="rounded-lg bg-white/15 p-2">
+                                        <GraduationCap size={20} className="text-white" />
+                                    </div>
+                                    <ShieldCheck size={18} className="text-primary-foreground/80" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold">
+                                        {adminData.metrics.total_proyek}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-primary-foreground/85">
+                                        Topik TA aktif ({adminData.metrics.proyek_draft} draft menunggu)
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Link
+                                href={`${baseUrl}/jadwal`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Jadwal Ujian</p>
+                                    <CalendarDays size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {adminData.metrics.published_schedules}
+                                        <span className="ml-1 text-base font-normal text-muted-foreground">
+                                            rilis
+                                        </span>
+                                    </h2>
+                                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                        {adminData.metrics.draft_schedules} jadwal masih draft
+                                    </p>
+                                </div>
+                            </Link>
+
+                            <Link
+                                href={`${baseUrl}/kehadiran-seminar`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Antrean Presensi</p>
+                                    <FileCheck2 size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {adminData.metrics.pending_attendances}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Kehadiran seminar belum divalidasi
+                                    </p>
+                                </div>
+                            </Link>
+
+                            <Link
+                                href={`${baseUrl}/master-data`}
+                                className="flex h-36 flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-primary/40"
+                            >
+                                <div className="flex items-start justify-between text-muted-foreground">
+                                    <p className="text-sm font-medium">Mahasiswa TA</p>
+                                    <Layers size={18} className="text-primary" />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-foreground">
+                                        {adminData.metrics.total_mahasiswa}
+                                    </h2>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Terdaftar pada sistem akademik
+                                    </p>
+                                </div>
+                            </Link>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                            {/* Agenda Ujian Terdekat */}
+                            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-xs">
+                                <div className="mb-5 flex items-center justify-between">
+                                    <h2 className="text-base font-bold text-foreground">
+                                        Agenda Seminar & Sidang Terdekat
+                                    </h2>
+                                    <Link
+                                        href={`${baseUrl}/jadwal`}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                                    >
+                                        Kelola semua <ArrowRight size={14} />
+                                    </Link>
+                                </div>
+
+                                <div className="divide-y divide-border">
+                                    {adminData.upcomingSchedules.length === 0 ? (
+                                        <p className="py-8 text-center text-sm text-muted-foreground">
+                                            Belum ada jadwal seminar atau sidang mendatang.
+                                        </p>
+                                    ) : (
+                                        adminData.upcomingSchedules.map((sched: any) => (
+                                            <div
+                                                key={sched.id}
+                                                className="flex items-center justify-between gap-3 py-3.5 first:pt-0 last:pb-0"
+                                            >
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="rounded bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">
+                                                            {sched.milestone_type}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {formatShortDate(sched.date)} ·{' '}
+                                                            {sched.room ?? 'Ruang Ujian'}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="mt-1 truncate text-sm font-bold text-foreground">
+                                                        {sched.mahasiswa?.name ?? 'Mahasiswa'}
+                                                    </h3>
+                                                </div>
+                                                <span
+                                                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                                                        sched.status === 'published'
+                                                            ? 'bg-emerald-500/10 text-emerald-600'
+                                                            : 'bg-amber-500/10 text-amber-600'
+                                                    }`}
+                                                >
+                                                    {sched.status}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Pengajuan Judul Terbaru */}
+                            <div className="flex flex-col rounded-xl border border-border bg-card p-6 shadow-xs">
+                                <div className="mb-5 flex items-center justify-between">
+                                    <h2 className="text-base font-bold text-foreground">
+                                        Topik & Pengajuan Judul Terbaru
+                                    </h2>
+                                    <Link
+                                        href={`${baseUrl}/tema-matchmaking`}
+                                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                                    >
+                                        Bursa judul <ArrowRight size={14} />
+                                    </Link>
+                                </div>
+
+                                <div className="divide-y divide-border">
+                                    {adminData.recentProjects.length === 0 ? (
+                                        <p className="py-8 text-center text-sm text-muted-foreground">
+                                            Belum ada topik TA yang masuk.
+                                        </p>
+                                    ) : (
+                                        adminData.recentProjects.map((proj: any) => (
+                                            <div
+                                                key={proj.id}
+                                                className="flex items-start justify-between gap-3 py-3.5 first:pt-0 last:pb-0"
+                                            >
+                                                <div className="min-w-0">
+                                                    <h3 className="line-clamp-1 text-sm font-bold text-foreground">
+                                                        {proj.judul}
+                                                    </h3>
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                                        Pengusul: {proj.pengusul?.name ?? '-'} · Skema:{' '}
+                                                        {proj.tipe}
+                                                    </p>
+                                                </div>
+                                                <span className="shrink-0 rounded bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
+                                                    {proj.status}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </>
     );
 }
 
-// Menggunakan pola Persistent Layout agar tidak terjadi double-wrapping
-Dashboard.layout = (page: any) => (
-    <AppLayout breadcrumbs={breadcrumbs}>
-        {page}
-    </AppLayout>
-);
+Dashboard.layout = (page: any) => <AppLayout breadcrumbs={breadcrumbs}>{page}</AppLayout>;
